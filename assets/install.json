@@ -1,0 +1,19 @@
+{
+  "server_name": {
+    "ask": true,
+    "default": "my-server"
+  },
+  "server_type": {
+    "ask": true,
+    "default": "paper",
+    "options": ["vanilla", "paper", "fabric", "forge", "neoforge", "purpur"]
+  },
+  "minecraft_version": {
+    "ask": true,
+    "default": "latest"
+  },
+  "directory": {
+    "ask": true,
+    "default": "./servers"
+  }
+}

@@ -1,0 +1,18 @@
+{
+  "port": {
+    "ask": true,
+    "default": 25565
+  },
+  "max_ram": {
+    "ask": true,
+    "default": "2G"
+  },
+  "min_ram": {
+    "ask": true,
+    "default": "1G"
+  },
+  "jvm_flags": {
+    "ask": false,
+    "default": []
+  }
+}

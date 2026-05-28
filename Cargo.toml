@@ -1,0 +1,7 @@
+[workspace]
+members = [
+    "crates/oxidemc-core",
+    "crates/oxidemc-tui",
+    "crates/oxidemc-webui",
+]
+resolver = "2"

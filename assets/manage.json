@@ -1,0 +1,14 @@
+{
+  "data_directory": {
+    "ask": false,
+    "default": "~/.config/oxidemc"
+  },
+  "presets_directory": {
+    "ask": false,
+    "default": "~/.config/oxidemc/presets"
+  },
+  "servers_directory": {
+    "ask": true,
+    "default": "~/servers"
+  }
+}

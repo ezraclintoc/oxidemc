@@ -1,64 +1,85 @@
 # Configuration Reference
 
-OxideMC uses three JSON config files. `manage.json` is global; `install.json` and `configure.json` are per-server.
+OxideMC uses JSON files for two purposes:
+
+- **Schema files** (`assets/`) — define which questions are shown and their defaults. Shipped with OxideMC.
+- **State files** (`oxide.json`) — saved state for a specific server. Generated per-server.
 
 ---
 
 ## manage.json
 
-Controls the question flow and default values for all server setups. Lives at `~/.config/oxidemc/manage.json`.
+Controls the question flow for OxideMC itself and determines how `install.json` and `configure.json` behave.
 
 | Field | Type | Description |
-|-------|------|-------------|
-| `default_server_type` | `string` | Default server type (`"paper"`, `"vanilla"`, `"fabric"`, `"forge"`, `"neoforge"`, `"purpur"`). If set, skips the type question. |
-| `default_version` | `string \| "latest"` | Default MC version. `"latest"` always picks the newest stable release. |
-| `ask_version` | `bool` | Whether to prompt for version selection. Default `true`. |
+| ----- | ---- | ----------- |
+| `ask_server_type` | `bool` | Whether to prompt for server type. Default `true`. |
+| `default_server_type` | `string` | Default if `ask_server_type` is `false`. One of `vanilla`, `paper`, `fabric`, `forge`, `neoforge`, `purpur`. |
+| `ask_version` | `bool` | Whether to prompt for MC version. Default `true`. |
+| `default_version` | `string \| "latest"` | Default version. `"latest"` always picks newest stable. |
 | `ask_directory` | `bool` | Whether to prompt for install directory. Default `true`. |
-| `default_directory` | `string` | Default install path if `ask_directory` is `false`. |
-| `ask_port` | `bool` | Whether to prompt for server port. Default `true`. |
-| `default_port` | `number` | Default port if `ask_port` is `false`. Default `25565`. |
+| `default_directory` | `string` | Default path if `ask_directory` is `false`. |
 
 ---
 
 ## install.json
 
-Generated in the server directory after installation. Records how the server was set up.
+Question schema for server installation. Defines what the install wizard asks.
 
 | Field | Type | Description |
-|-------|------|-------------|
-| `server_type` | `string` | Server software used. |
-| `minecraft_version` | `string` | Minecraft version installed. |
-| `directory` | `string` | Absolute path to the server directory. |
-| `jar_name` | `string` | Filename of the downloaded JAR. |
+| ----- | ---- | ----------- |
+| `ask_server_name` | `bool` | Whether to prompt for a server name. Default `true`. |
+| `ask_port` | `bool` | Whether to prompt for port. Default `true`. |
+| `default_port` | `number` | Default port if `ask_port` is `false`. Default `25565`. |
 
 ---
 
 ## configure.json
 
-Generated in the server directory. Stores runtime configuration.
+Question schema for server configuration. Defines what the configure wizard asks.
 
 | Field | Type | Description |
-|-------|------|-------------|
-| `port` | `number` | Server port. Default `25565`. |
-| `max_ram` | `string` | Max JVM heap size (e.g. `"4G"`). |
-| `min_ram` | `string` | Min JVM heap size (e.g. `"1G"`). |
-| `jvm_flags` | `string[]` | Additional JVM flags. |
+| ----- | ---- | ----------- |
+| `ask_ram` | `bool` | Whether to prompt for RAM allocation. Default `true`. |
+| `default_max_ram` | `string` | Default max heap size (e.g. `"4G"`). |
+| `default_min_ram` | `string` | Default min heap size (e.g. `"1G"`). |
+| `ask_jvm_flags` | `bool` | Whether to prompt for extra JVM flags. Default `false`. |
+| `default_jvm_flags` | `string[]` | Default JVM flags. |
 
 ---
 
-## Preset files
+## Preset files (`assets/presets/*.json`)
 
-Presets live in `~/.config/oxidemc/presets/` as individual `.json` files. Each preset can override any field from `manage.json`. Select a preset at startup to apply its values as defaults for that session.
+Named files that override defaults in `install.json` and `configure.json`. Select a preset at startup to apply it. Because they capture question defaults, a preset can fully reproduce a server setup.
 
 ```json
 {
   "name": "Paper Latest",
   "default_server_type": "paper",
-  "default_version": "latest",
   "ask_version": false,
+  "default_version": "latest",
   "default_port": 25565,
-  "max_ram": "4G"
+  "default_max_ram": "4G"
 }
 ```
 
-> **Note:** Field names above are provisional. This document will be updated as the schema stabilizes.
+---
+
+## oxide.json (per-server)
+
+Saved state file generated in each server's directory after setup. Records the answers to all install and configure questions. Can be loaded as a preset to duplicate that server.
+
+```json
+{
+  "server_name": "my-server",
+  "server_type": "paper",
+  "minecraft_version": "1.21.4",
+  "directory": "/home/user/servers/my-server",
+  "port": 25565,
+  "max_ram": "4G",
+  "min_ram": "1G",
+  "jvm_flags": []
+}
+```
+
+> **Note:** Field names are provisional and will be updated as the schema stabilizes.

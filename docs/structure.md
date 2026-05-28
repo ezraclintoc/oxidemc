@@ -8,6 +8,7 @@ oxidemc/
 │   ├── oxidemc-core/    # server logic, config parsing, JAR downloads, mod management
 │   ├── oxidemc-tui/     # ratatui terminal UI (binary: oxidemc)
 │   └── oxidemc-webui/   # web UI (binary: oxidemc-web)
+├── assets/              # question schema files shipped with the binary
 └── docs/
 ```
 
@@ -15,45 +16,45 @@ oxidemc/
 
 ---
 
-## Application File Layout
+## Assets (question schema files)
 
-Files OxideMC reads/writes at runtime, relative to the user's config directory:
+Shipped with OxideMC. Define what questions are shown and their default values.
 
 ```text
-~/.config/oxidemc/
-├── manage.json          # global settings — controls question flow and defaults
-└── presets/             # user-defined presets, each is a .json file
-    ├── paper-latest.json
-    └── vanilla-survival.json
+assets/
+├── manage.json          # questions for configuring OxideMC itself and the other schemas
+├── install.json         # questions shown when setting up a new server
+├── configure.json       # questions shown when configuring a server
+└── presets/             # named presets that override question defaults
+    └── example.json
 ```
 
-Per-server config files (`install.json`, `configure.json`) are generated in each server's directory:
+---
+
+## Per-server files
+
+Each server OxideMC manages gets one file in its directory:
 
 ```text
 <server-directory>/
-├── install.json         # how the server was installed (type, version, path)
-├── configure.json       # server configuration (port, RAM, JVM flags)
+├── oxide.json           # saved state — answers to all install/configure questions
 └── <server.jar>
 ```
 
+`oxide.json` captures the full state of a server setup. Loading it as a preset lets you duplicate that server exactly.
+
 ---
 
-## Configuration Structure
-
-`manage.json` is the top-level config. It determines which fields appear in `install.json` and `configure.json` and what their defaults are. Presets are separate files that can override `manage.json` values for a specific setup.
+## Configuration Flow
 
 ```mermaid
 graph TD
-    M[manage.json] -->|drives defaults for| I[install.json]
-    M -->|drives defaults for| C[configure.json]
-    P[presets/*.json] -->|can override| I
-    P -->|can override| C
+    M[assets/manage.json] -->|configures question schema of| I[assets/install.json]
+    M -->|configures question schema of| C[assets/configure.json]
+    M -->|configures OxideMC install settings| OX[OxideMC]
+    P[assets/presets/*.json] -->|overrides defaults in| I
+    P -->|overrides defaults in| C
+    O[oxide.json] -->|load as preset to| P
     I --> S{server}
     C --> S
 ```
-
----
-
-## Config Reference
-
-See [config.md](config.md) for all fields.
