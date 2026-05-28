@@ -175,6 +175,71 @@ pub struct ConfigureConfig {
     pub platform_specific: Option<PlatformSpecificConfig>,
 }
 
+// ── Resolved state (oxide.json) ───────────────────────────────────────────────
+//
+// Plain values — no Question<T> wrapper. Written per-server after the wizard runs.
+
+#[derive(Debug, Deserialize, Serialize)]
+pub struct ResolvedServerSection {
+    pub motd: String,
+    pub max_players: u32,
+    pub gamemode: String,
+    pub difficulty: String,
+    pub pvp: bool,
+    pub whitelist: bool,
+    pub online_mode: bool,
+    pub level_name: String,
+    pub seed: String,
+    pub spawn_protection: u16,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+pub struct ResolvedRconSection {
+    pub enabled: bool,
+    pub port: u16,
+    pub password: String,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+pub struct ResolvedNetworkSection {
+    pub port: u16,
+    pub rcon: ResolvedRconSection,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+pub struct ResolvedPerformanceSection {
+    pub max_ram: String,
+    pub min_ram: String,
+    pub jvm_flags: String,
+    pub render_distance: u8,
+    pub simulation_distance: u8,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+pub struct ResolvedPlayersSection {
+    pub ops: Vec<String>,
+    pub banned_players: Vec<String>,
+    pub whitelist_players: Vec<String>,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+pub struct ResolvedModsSection {
+    pub mods: Vec<ModEntry>,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+pub struct ServerState {
+    pub server_name: String,
+    pub server_type: String,
+    pub minecraft_version: String,
+    pub directory: String,
+    pub server: ResolvedServerSection,
+    pub network: ResolvedNetworkSection,
+    pub performance: ResolvedPerformanceSection,
+    pub players: ResolvedPlayersSection,
+    pub mods: ResolvedModsSection,
+}
+
 // ── Manage ────────────────────────────────────────────────────────────────────
 
 #[derive(Debug, Deserialize, Serialize)]
