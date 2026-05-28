@@ -10,5 +10,38 @@
   "servers_directory": {
     "ask": true,
     "default": "~/servers"
+  },
+  "java_path": {
+    "ask": false,
+    "default": ""
+  },
+  "check_java_version": {
+    "ask": false,
+    "default": true
+  },
+  "auto_update_check": {
+    "ask": false,
+    "default": true
+  },
+  "backup_directory": {
+    "ask": false,
+    "default": "~/.config/oxidemc/backups"
+  },
+  "backup_count": {
+    "ask": false,
+    "default": 5
+  },
+  "log_level": {
+    "ask": false,
+    "default": "info",
+    "options": ["error", "warn", "info", "debug"]
+  },
+  "default_preset": {
+    "ask": false,
+    "default": ""
+  },
+  "theme": {
+    "ask": false,
+    "default": "default"
   }
 }

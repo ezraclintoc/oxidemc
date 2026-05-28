@@ -15,5 +15,30 @@
   "directory": {
     "ask": true,
     "default": "./servers"
+  },
+  "eula_auto_accept": {
+    "ask": false,
+    "default": true
+  },
+  "auto_start": {
+    "ask": true,
+    "default": false
+  },
+  "create_start_script": {
+    "ask": true,
+    "default": true
+  },
+  "icon": {
+    "ask": false,
+    "default": ""
+  },
+  "load_preset": {
+    "ask": false,
+    "default": ""
+  },
+  "backup_before_reinstall": {
+    "ask": true,
+    "default": true,
+    "condition": "install_dir_exists_and_nonempty"
   }
 }

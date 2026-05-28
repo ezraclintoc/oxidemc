@@ -1,18 +1,155 @@
 {
-  "port": {
-    "ask": true,
-    "default": 25565
+  "server": {
+    "motd": {
+      "ask": true,
+      "default": "A Minecraft Server"
+    },
+    "max_players": {
+      "ask": true,
+      "default": 20
+    },
+    "gamemode": {
+      "ask": true,
+      "default": "survival",
+      "options": ["survival", "creative", "adventure", "spectator"]
+    },
+    "difficulty": {
+      "ask": true,
+      "default": "normal",
+      "options": ["peaceful", "easy", "normal", "hard"]
+    },
+    "pvp": {
+      "ask": true,
+      "default": true
+    },
+    "whitelist": {
+      "ask": true,
+      "default": false
+    },
+    "online_mode": {
+      "ask": true,
+      "default": true,
+      "note": "Disable only for offline/LAN setups. Disabling allows unverified (cracked) clients to join."
+    },
+    "level_name": {
+      "ask": false,
+      "default": "world"
+    },
+    "seed": {
+      "ask": true,
+      "default": ""
+    },
+    "spawn_protection": {
+      "ask": false,
+      "default": 16
+    }
   },
-  "max_ram": {
-    "ask": true,
-    "default": "2G"
+  "network": {
+    "port": {
+      "ask": true,
+      "default": 25565
+    },
+    "rcon": {
+      "enabled": {
+        "ask": true,
+        "default": true,
+        "note": "OxideMC requires RCON for live server management (console access, player commands, restart hooks). Disabling it will prevent those features from working."
+      },
+      "port": {
+        "ask": false,
+        "default": 25575
+      },
+      "password": {
+        "ask": true,
+        "default": ""
+      }
+    }
   },
-  "min_ram": {
-    "ask": true,
-    "default": "1G"
+  "performance": {
+    "max_ram": {
+      "ask": true,
+      "default": "2G"
+    },
+    "min_ram": {
+      "ask": true,
+      "default": "1G"
+    },
+    "jvm_flags": {
+      "ask": false,
+      "default": ""
+    },
+    "render_distance": {
+      "ask": true,
+      "default": 10
+    },
+    "simulation_distance": {
+      "ask": true,
+      "default": 10
+    }
   },
-  "jvm_flags": {
-    "ask": false,
-    "default": []
+  "players": {
+    "ops": {
+      "ask": true,
+      "default": [],
+      "requires_rcon": true
+    },
+    "banned_players": {
+      "ask": false,
+      "default": [],
+      "requires_rcon": true
+    },
+    "whitelist_players": {
+      "ask": true,
+      "default": [],
+      "requires_rcon": true
+    }
+  },
+  "mods": {
+    "mods": {
+      "ask": true,
+      "default": []
+    }
+  },
+  "platform_specific": {
+    "paper": {
+      "tnt_duping": {
+        "ask": true,
+        "default": false
+      },
+      "bedrock_breaking": {
+        "ask": true,
+        "default": false
+      },
+      "anti_xray": {
+        "ask": true,
+        "default": true
+      },
+      "anti_xray_engine": {
+        "ask": false,
+        "default": 1
+      }
+    },
+    "fabric": {
+      "loader_version": {
+        "ask": false,
+        "default": "latest"
+      }
+    },
+    "forge": {
+      "loader_version": {
+        "ask": false,
+        "default": "latest"
+      }
+    },
+    "purpur": {
+      "rideable_phantoms": {
+        "ask": true,
+        "default": false
+      },
+      "mobs_ignore_rails": {
+        "ask": true,
+        "default": false
+      }
+    }
   }
 }
