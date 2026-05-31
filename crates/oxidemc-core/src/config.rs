@@ -33,8 +33,6 @@ pub fn save_manage(config: &ManageConfig) -> Result<(), ConfigError> {
     Ok(())
 }
 
-// ── Per-server state (oxide.json) ─────────────────────────────────────────────
-
 pub fn save_server_state(state: &ServerState, server_dir: &PathBuf) -> Result<(), ConfigError> {
     std::fs::create_dir_all(server_dir)?;
     let json = serde_json::to_string_pretty(state)?;
