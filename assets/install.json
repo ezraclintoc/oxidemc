@@ -12,10 +12,6 @@
     "ask": true,
     "default": "latest"
   },
-  "directory": {
-    "ask": true,
-    "default": "./servers"
-  },
   "eula_auto_accept": {
     "ask": false,
     "default": true

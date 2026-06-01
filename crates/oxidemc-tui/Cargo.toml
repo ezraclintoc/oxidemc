@@ -4,4 +4,8 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
+crossterm = "0.29.0"
 oxidemc-core = { version = "0.1.0", path = "../oxidemc-core" }
+ratatui = "0.30.0"
+tui-big-text = "0.8"
+tokio = { version = "1.52.3", features = ["full"] }

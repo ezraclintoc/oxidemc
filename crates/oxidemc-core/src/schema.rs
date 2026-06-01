@@ -27,7 +27,6 @@ pub struct InstallConfig {
     pub server_name: Question<String>,
     pub server_type: Question<String>,
     pub minecraft_version: Question<String>,
-    pub directory: Question<String>,
     /// Skip the EULA prompt and accept automatically
     pub eula_auto_accept: Question<bool>,
     /// Start the server immediately after install completes

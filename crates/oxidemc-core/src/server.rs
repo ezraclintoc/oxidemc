@@ -1,3 +1,4 @@
+use crate::downloader;
 use crate::rcon::RconClient;
 use crate::schema::ServerState;
 use std::fs;
@@ -37,7 +38,7 @@ pub async fn launch(
         return Err(ServerError::JavaNotFound);
     }
 
-    let jar_name = format!("{}-{}.jar", state.server_type, state.minecraft_version);
+    let jar_name = downloader::jar_name(&state.server_type, &state.minecraft_version);
 
     let child = Command::new(java_bin)
         .current_dir(&state.directory)

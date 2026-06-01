@@ -58,10 +58,9 @@ Drives the install wizard.
 
 | Field | Default | Description |
 | --- | --- | --- |
-| `server_name` | `"my-server"` | Human-readable name for this server. |
+| `server_name` | `"my-server"` | Human-readable name for this server. The server directory is derived as `servers_directory/server_name` from `manage.json`. |
 | `server_type` | `"paper"` | Server software. Options: `vanilla`, `paper`, `fabric`, `forge`, `neoforge`, `purpur`. |
 | `minecraft_version` | `"latest"` | MC version to install. `"latest"` always picks newest stable. |
-| `directory` | `"./servers"` | Parent directory for the server folder. |
 | `eula_auto_accept` | `true` | Accept the Minecraft EULA automatically without prompting. |
 | `auto_start` | `false` | Start the server immediately after install completes. |
 | `create_start_script` | `true` | Generate a `start.sh` / `start.bat` in the server directory. |
