@@ -5,7 +5,9 @@ use ratatui::Frame;
 use ratatui::layout::Constraint;
 use ratatui::style::Modifier;
 use ratatui::text::{Line, Span};
-use ratatui::widgets::{Block, Borders, List, ListItem, ListState, Paragraph};
+use ratatui::layout::{Alignment, Layout};
+use ratatui::widgets::{Block, Borders, Gauge, List, ListItem, ListState, Paragraph, RatatuiLogo};
+use tui_big_text::{BigText, PixelSize};
 
 // Install wizard steps:
 // 0 - Server name input (free text)
@@ -123,6 +125,120 @@ pub fn draw(frame: &mut Frame, app: &App) {
                     .border_style(t.border),
             );
             frame.render_widget(para, frame.area().centered(Constraint::Length(50), Constraint::Length(lines.len() as u16 + 2)));
+        }
+        5 => {
+            let outer = Layout::vertical([
+                Constraint::Fill(1),
+                Constraint::Length(6),
+                Constraint::Fill(1),
+            ])
+            .split(frame.area());
+
+            let inner = Layout::vertical([
+                Constraint::Length(1), // filename label
+                Constraint::Length(1), // gap
+                Constraint::Length(3), // gauge
+                Constraint::Length(1), // error (if any)
+            ])
+            .split(outer[1].centered(Constraint::Percentage(60), Constraint::Length(6)));
+
+            let jar = format!("{}-{}.jar", istate.server_type, istate.version);
+            let label = Paragraph::new(Span::styled(
+                format!("Downloading {jar}"),
+                t.border_title,
+            ))
+            .alignment(Alignment::Center);
+            frame.render_widget(label, inner[0]);
+
+            let gauge = Gauge::default()
+                .block(Block::default().borders(Borders::ALL).border_style(t.border))
+                .gauge_style(t.gauge)
+                .ratio(istate.download_progress)
+                .label(format!("{:.0}%", istate.download_progress * 100.0));
+            frame.render_widget(gauge, inner[2]);
+
+            if let Some(err) = &istate.download_error {
+                let msg = Paragraph::new(Span::styled(err.clone(), t.error))
+                    .alignment(Alignment::Center);
+                frame.render_widget(msg, inner[3]);
+            }
+        }
+        6 => {
+            // split full screen: content area + 3-row bottom bar
+            let [main, bottom] = Layout::vertical([
+                Constraint::Fill(1),
+                Constraint::Length(3), // "Powered by" + logo
+            ])
+            .areas(frame.area());
+
+            // centered content: 4 + 1 + 1 + 1 + 1 = 8 rows
+            let vert = Layout::vertical([
+                Constraint::Fill(1),
+                Constraint::Length(8),
+                Constraint::Fill(1),
+            ])
+            .split(main);
+
+            let col = Layout::horizontal([
+                Constraint::Fill(1),
+                Constraint::Length(58),
+                Constraint::Fill(1),
+            ])
+            .split(vert[1])[1];
+
+            let sections = Layout::vertical([
+                Constraint::Length(4), // OxideMC big text
+                Constraint::Length(1), // gap
+                Constraint::Length(1), // success message
+                Constraint::Length(1), // gap
+                Constraint::Length(1), // footer hints
+            ])
+            .split(col);
+
+            // OxideMC title
+            let title = BigText::builder()
+                .pixel_size(PixelSize::HalfHeight)
+                .lines(vec![Line::from("OxideMC")])
+                .style(t.title)
+                .build();
+            frame.render_widget(title, sections[0]);
+
+            // success message
+            let msg = Paragraph::new(Line::from(vec![
+                Span::styled(format!("\"{}\"", istate.server_name), t.value),
+                Span::styled(" installed successfully!", t.success),
+            ]))
+            .alignment(Alignment::Center);
+            frame.render_widget(msg, sections[2]);
+
+            // footer hints
+            let footer = Paragraph::new(Line::from(vec![
+                Span::styled(" Enter ", t.footer_key),
+                Span::styled("menu  ", t.footer_desc),
+                Span::styled(" q ", t.footer_key),
+                Span::styled("quit", t.footer_desc),
+            ]))
+            .alignment(Alignment::Center);
+            frame.render_widget(footer, sections[4]);
+
+            // "Powered by ratatui" pinned to the bottom
+            let [label_row, logo_row] = Layout::vertical([
+                Constraint::Length(1),
+                Constraint::Length(2),
+            ])
+            .areas(bottom);
+
+            let powered_by = Paragraph::new(Span::styled("Powered by", t.hint))
+                .alignment(Alignment::Center);
+            frame.render_widget(powered_by, label_row);
+
+            let logo_area = Layout::horizontal([
+                Constraint::Fill(1),
+                Constraint::Length(27),
+                Constraint::Fill(1),
+            ])
+            .split(logo_row)[1];
+            frame.render_widget(RatatuiLogo::small(), logo_area);
         }
         _ => {
             let text = Paragraph::new(Span::styled("Not implemented yet. Press Esc.", t.hint));

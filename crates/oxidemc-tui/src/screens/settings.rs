@@ -1,4 +1,4 @@
-use crate::app::{field_kind, FieldKind, SettingsState};
+use crate::state::{field_kind, FieldKind, SettingsState};
 use crate::theme::Theme;
 use ratatui::Frame;
 use ratatui::layout::{Constraint, Layout, Rect};

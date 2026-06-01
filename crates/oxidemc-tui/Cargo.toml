@@ -5,6 +5,7 @@ edition = "2024"
 
 [dependencies]
 crossterm = "0.29.0"
+dirs = "5"
 oxidemc-core = { version = "0.1.0", path = "../oxidemc-core" }
 ratatui = "0.30.0"
 tui-big-text = "0.8"

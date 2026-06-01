@@ -15,10 +15,13 @@ pub struct Theme {
     pub gauge:        Style,  // download progress bar
 }
 
-impl Theme {
-    pub fn default() -> Self {
+impl Default for Theme {
+    fn default() -> Self {
         Self::rust()
     }
+}
+
+impl Theme {
 
     // Warm rust-metal orange — matches the Rust language brand colour (~#E8561A)
     pub fn rust() -> Self {
