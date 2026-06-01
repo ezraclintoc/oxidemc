@@ -60,13 +60,13 @@ pub fn draw(frame: &mut Frame, area: Rect, state: &SettingsState, t: &Theme) {
         .highlight_style(t.highlight)
         .highlight_symbol("> ");
 
-    frame.render_stateful_widget(list, area, &mut list_state);
+    frame.render_stateful_widget(list, area.centered(Constraint::Length(50), Constraint::Length(rows.len() as u16 + 2)), &mut list_state);
 
     if state.editing {
         let field_name = rows.get(state.selected).map(|(l, _)| *l).unwrap_or("Value");
         match field_kind(state.selected) {
             FieldKind::Choice(options) => {
-                let popup_area = centered_rect(40, 40, area);
+                let popup_area = centered_rect_fixed_height(40, options.len() as u16 + 2, area);
                 frame.render_widget(Clear, popup_area);
                 let items: Vec<ListItem> = options.iter().map(|&opt| ListItem::new(opt)).collect();
                 let mut lstate = ListState::default();
@@ -88,7 +88,7 @@ pub fn draw(frame: &mut Frame, area: Rect, state: &SettingsState, t: &Theme) {
                     FieldKind::Ram => " (e.g. 2G, 512M)".to_string(),
                     _ => String::new(),
                 };
-                let popup_area = centered_rect(50, 20, area);
+                let popup_area = centered_rect_fixed_height(50, 3, area);
                 frame.render_widget(Clear, popup_area);
                 let popup = Paragraph::new(Line::from(vec![
                     Span::raw("> "),
@@ -106,11 +106,11 @@ pub fn draw(frame: &mut Frame, area: Rect, state: &SettingsState, t: &Theme) {
     }
 }
 
-fn centered_rect(percent_x: u16, percent_y: u16, r: Rect) -> Rect {
+fn centered_rect_fixed_height(percent_x: u16, height: u16, r: Rect) -> Rect {
     let vert = Layout::vertical([
-        Constraint::Percentage((100 - percent_y) / 2),
-        Constraint::Percentage(percent_y),
-        Constraint::Percentage((100 - percent_y) / 2),
+        Constraint::Fill(1),
+        Constraint::Length(height),
+        Constraint::Fill(1),
     ])
     .split(r);
     Layout::horizontal([

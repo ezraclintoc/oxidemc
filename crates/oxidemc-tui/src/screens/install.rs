@@ -2,6 +2,7 @@ use crate::app::{App, Screen};
 use crate::screens::settings;
 use oxidemc_core::downloader::get_platforms;
 use ratatui::Frame;
+use ratatui::layout::Constraint;
 use ratatui::style::Modifier;
 use ratatui::text::{Line, Span};
 use ratatui::widgets::{Block, Borders, List, ListItem, ListState, Paragraph};
@@ -35,7 +36,7 @@ pub fn draw(frame: &mut Frame, app: &App) {
                     .borders(Borders::ALL)
                     .border_style(t.border),
             );
-            frame.render_widget(text, frame.area());
+            frame.render_widget(text, frame.area().centered(Constraint::Percentage(50), Constraint::Length(3)));
         }
         // step 1: platform picker
         1 => {
@@ -44,7 +45,7 @@ pub fn draw(frame: &mut Frame, app: &App) {
 
             let items: Vec<ListItem> = get_platforms().iter().map(|p| ListItem::new(*p)).collect();
 
-            let list = List::new(items)
+            let list = List::new(items.clone())
                 .block(
                     Block::default()
                         .title(Span::styled("Choose a Platform", t.border_title))
@@ -54,7 +55,7 @@ pub fn draw(frame: &mut Frame, app: &App) {
                 .highlight_style(t.highlight)
                 .highlight_symbol("> ");
 
-            frame.render_stateful_widget(list, frame.area(), &mut lstate);
+            frame.render_stateful_widget(list, frame.area().centered(Constraint::Length(20), Constraint::Length(items.len() as u16 + 2)), &mut lstate);
         }
         // step 2: version picker
         2 => {
@@ -67,7 +68,7 @@ pub fn draw(frame: &mut Frame, app: &App) {
                 istate.versions.iter().map(|v| ListItem::new(v.as_str())).collect()
             };
 
-            let list = List::new(items)
+            let list = List::new(items.clone())
                 .block(
                     Block::default()
                         .title(Span::styled("Choose a Version", t.border_title))
@@ -77,7 +78,7 @@ pub fn draw(frame: &mut Frame, app: &App) {
                 .highlight_style(t.highlight)
                 .highlight_symbol("> ");
 
-            frame.render_stateful_widget(list, frame.area(), &mut lstate);
+            frame.render_stateful_widget(list, frame.area().centered(Constraint::Length(20), Constraint::Length(items.len() as u16 + 2)), &mut lstate);
         }
         // step 3: settings panel — selected is synced from istate.cursor in app.rs
         3 => {
@@ -115,13 +116,13 @@ pub fn draw(frame: &mut Frame, app: &App) {
                 )),
             ];
 
-            let para = Paragraph::new(lines).block(
+            let para = Paragraph::new(lines.clone()).block(
                 Block::default()
                     .title(Span::styled("Summary", t.border_title))
                     .borders(Borders::ALL)
                     .border_style(t.border),
             );
-            frame.render_widget(para, frame.area());
+            frame.render_widget(para, frame.area().centered(Constraint::Length(50), Constraint::Length(lines.len() as u16 + 2)));
         }
         _ => {
             let text = Paragraph::new(Span::styled("Not implemented yet. Press Esc.", t.hint));

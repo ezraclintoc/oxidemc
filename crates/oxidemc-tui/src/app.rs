@@ -16,8 +16,8 @@ pub fn field_kind(row: usize) -> FieldKind {
     match row {
         0  => FieldKind::Text,
         1  => FieldKind::Number { min: 1, max: 10000 },
-        2  => { const O: &[&str] = &["survival", "creative", "adventure", "spectator"]; FieldKind::Choice(O) }
-        3  => { const O: &[&str] = &["peaceful", "easy", "normal", "hard"]; FieldKind::Choice(O) }
+        2  => { const O: &[&str; 4] = &["survival", "creative", "adventure", "spectator"]; FieldKind::Choice(O) }
+        3  => { const O: &[&str; 4] = &["peaceful", "easy", "normal", "hard"]; FieldKind::Choice(O) }
         4  => FieldKind::Toggle,
         5  => FieldKind::Number { min: 1, max: 65535 },
         6  => FieldKind::Ram,
