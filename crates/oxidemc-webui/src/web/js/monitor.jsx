@@ -83,7 +83,7 @@ function Console({ log, onSend, running, height = 'auto', flush }) {
       <form onSubmit={submit} className="row" style={{ gap: 8, padding: 10, borderTop: '1px solid var(--border)', background: 'var(--panel)' }}>
         <span className="mono" style={{ color: running ? 'var(--accent-bright)' : 'var(--text-faint)', fontSize: 14, paddingLeft: 4 }}>/</span>
         <input className="input" value={cmd} onChange={e => setCmd(e.target.value)} disabled={!running}
-          placeholder={running ? 'type an RCON command — try “list” or “say hi”' : 'start the server to send commands'}
+          placeholder={running ? 'type an RCON command — try "list" or "say hi"' : 'start the server to send commands'}
           style={{ border: 0, background: 'transparent', height: 28, paddingLeft: 0 }} />
         <button className="btn sm primary" type="submit" disabled={!running || !cmd.trim()}><Icon name="send" size={13} />Send</button>
       </form>

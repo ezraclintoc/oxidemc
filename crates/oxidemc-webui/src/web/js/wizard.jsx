@@ -7,7 +7,7 @@ const { useState: useStateW, useEffect: useEffectW, useRef: useRefW } = React;
 const WIZ_STEPS = [
   { key: 'name',     label: 'Name',     title: 'Name your server',     sub: 'A human-readable name. The directory is derived from it.' },
   { key: 'platform', label: 'Platform', title: 'Choose a platform',    sub: 'Server software to download and run.' },
-  { key: 'version',  label: 'Version',  title: 'Choose a version',     sub: 'Minecraft version. “latest” always picks newest stable.' },
+  { key: 'version',  label: 'Version',  title: 'Choose a version',     sub: 'Minecraft version. "latest" always picks newest stable.' },
   { key: 'settings', label: 'Settings', title: 'Configure settings',   sub: 'Optional — every field has a sensible default.' },
   { key: 'review',   label: 'Review',   title: 'Review & install',     sub: 'Confirm your choices before downloading.' },
 ];
@@ -347,7 +347,7 @@ function DoneView({ name, platform, version, onOpen, onNew }) {
         background: 'color-mix(in oklch, var(--green) 16%, transparent)', border: '1px solid color-mix(in oklch, var(--green) 45%, transparent)', color: 'var(--green)' }}>
         <Icon name="check" size={30} />
       </div>
-      <h1 className="sans" style={{ margin: 0, fontSize: 26, fontWeight: 600 }}>“{name}” installed</h1>
+      <h1 className="sans" style={{ margin: 0, fontSize: 26, fontWeight: 600 }}>"{name}" installed</h1>
       <p style={{ color: 'var(--text-dim)', fontSize: 13.5, margin: '10px 0 24px' }}>
         {PLATFORMS.find(p=>p.id===platform)?.name} {version} is ready in <span className="val">~/servers/{name}</span>.
       </p>

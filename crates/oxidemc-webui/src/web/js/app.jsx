@@ -166,25 +166,25 @@ function GlobalSettings() {
   const [saved, setSaved] = useStateA(false);
 
   useEffectA(() => {
-    apiFetch(‘/api/manage’).then(setM).catch(console.error);
+    apiFetch('/api/manage').then(setM).catch(console.error);
   }, []);
 
-  if (!m) return <div className="content-pad" style={{ color: ‘var(--text-dim)’, fontSize: 13 }}>Loading…</div>;
+  if (!m) return <div className="content-pad" style={{ color: 'var(--text-dim)', fontSize: 13 }}>Loading…</div>;
 
   const set = (k, v) => setM(s => ({ ...s, [k]: { ...s[k], default: v } }));
   const save = () => {
     setSaving(true);
-    apiFetch(‘/api/manage’, { method: ‘PUT’, body: JSON.stringify(m) })
+    apiFetch('/api/manage', { method: 'PUT', body: JSON.stringify(m) })
       .then(updated => { setM(updated); setSaved(true); setTimeout(() => setSaved(false), 2000); })
       .catch(console.error)
       .finally(() => setSaving(false));
   };
 
   const Row = ({ label, note, children }) => (
-    <div style={{ display: ‘grid’, gridTemplateColumns: ‘230px 1fr’, gap: 20, padding: ‘16px 18px’, borderTop: ‘1px solid var(--border-soft)’, alignItems: ‘center’ }}>
+    <div style={{ display: 'grid', gridTemplateColumns: '230px 1fr', gap: 20, padding: '16px 18px', borderTop: '1px solid var(--border-soft)', alignItems: 'center' }}>
       <div className="col" style={{ gap: 3 }}>
-        <span style={{ fontSize: 13, color: ‘var(--text)’ }}>{label}</span>
-        {note && <span style={{ fontSize: 11, color: ‘var(--text-faint)’, lineHeight: 1.4 }}>{note}</span>}
+        <span style={{ fontSize: 13, color: 'var(--text)' }}>{label}</span>
+        {note && <span style={{ fontSize: 11, color: 'var(--text-faint)', lineHeight: 1.4 }}>{note}</span>}
       </div>
       <div>{children}</div>
     </div>
@@ -198,27 +198,27 @@ function GlobalSettings() {
         <p>Global preferences applied to every server OxideMC creates and manages.</p>
       </div>
       <button className="btn primary" onClick={save} disabled={saving}>
-        {saved ? <><Icon name="check" size={14} />Saved</> : saving ? ‘Saving…’ : ‘Save changes’}
+        {saved ? <><Icon name="check" size={14} />Saved</> : saving ? 'Saving…' : 'Save changes'}
       </button>
       </div>
 
-      <div className="panel" style={{ overflow: ‘hidden’ }}>
-        <div className="panel-h"><span style={{ color: ‘var(--accent-bright)’ }}><Icon name="folder" size={15} /></span><span className="t">Paths</span></div>
-        <Row label="Servers directory" note="Parent folder for new servers."><input className="input" value={m.servers_directory.default} onChange={e => set(‘servers_directory’, e.target.value)} /></Row>
-        <Row label="Java path" note="Empty = use java found on $PATH."><input className="input" value={m.java_path.default} placeholder="auto-detect" onChange={e => set(‘java_path’, e.target.value)} /></Row>
-        <Row label="Backup directory"><input className="input" value={m.backup_directory.default} onChange={e => set(‘backup_directory’, e.target.value)} /></Row>
+      <div className="panel" style={{ overflow: 'hidden' }}>
+        <div className="panel-h"><span style={{ color: 'var(--accent-bright)' }}><Icon name="folder" size={15} /></span><span className="t">Paths</span></div>
+        <Row label="Servers directory" note="Parent folder for new servers."><input className="input" value={m.servers_directory.default} onChange={e => set('servers_directory', e.target.value)} /></Row>
+        <Row label="Java path" note="Empty = use java found on $PATH."><input className="input" value={m.java_path.default} placeholder="auto-detect" onChange={e => set('java_path', e.target.value)} /></Row>
+        <Row label="Backup directory"><input className="input" value={m.backup_directory.default} onChange={e => set('backup_directory', e.target.value)} /></Row>
         <Row label="Backup count" note="Rolling backups kept per server. 0 = unlimited.">
-          <input className="input" value={m.backup_count.default} onChange={e => set(‘backup_count’, parseInt(e.target.value.replace(/\D/g,’’),10)||0)} style={{ maxWidth: 120 }} /></Row>
+          <input className="input" value={m.backup_count.default} onChange={e => set('backup_count', parseInt(e.target.value.replace(/\D/g,''),10)||0)} style={{ maxWidth: 120 }} /></Row>
       </div>
 
-      <div className="panel" style={{ overflow: ‘hidden’, marginTop: 16 }}>
-        <div className="panel-h"><span style={{ color: ‘var(--accent-bright)’ }}><Icon name="settings" size={15} /></span><span className="t">Behavior</span></div>
+      <div className="panel" style={{ overflow: 'hidden', marginTop: 16 }}>
+        <div className="panel-h"><span style={{ color: 'var(--accent-bright)' }}><Icon name="settings" size={15} /></span><span className="t">Behavior</span></div>
         <Row label="Theme" note="TUI color theme.">
-          <select className="select" value={m.theme.default} onChange={e => set(‘theme’, e.target.value)} style={{ maxWidth: 200 }}>
-            {[‘default’, ‘green’, ‘ocean’, ‘lava’].map(o => <option key={o}>{o}</option>)}
+          <select className="select" value={m.theme.default} onChange={e => set('theme', e.target.value)} style={{ maxWidth: 200 }}>
+            {['default', 'green', 'ocean', 'lava'].map(o => <option key={o}>{o}</option>)}
           </select></Row>
-        <Row label="Auto-update check" note="Check for OxideMC updates on launch."><Toggle on={m.auto_update_check.default} onChange={v => set(‘auto_update_check’, v)} /></Row>
-        <Row label="Java version check" note="Warn if Java is incompatible with the MC version."><Toggle on={m.check_java_version.default} onChange={v => set(‘check_java_version’, v)} /></Row>
+        <Row label="Auto-update check" note="Check for OxideMC updates on launch."><Toggle on={m.auto_update_check.default} onChange={v => set('auto_update_check', v)} /></Row>
+        <Row label="Java version check" note="Warn if Java is incompatible with the MC version."><Toggle on={m.check_java_version.default} onChange={v => set('check_java_version', v)} /></Row>
       </div>
     </div>
   );
@@ -320,7 +320,7 @@ function App() {
 
       {/* main */}
       <div className="main">
-        <div className="content" style={route.view === 'server' && route.tab === 'monitor' && t.monitorLayout === 'focus' ? { display: 'flex', flexDirection: 'column' } : null}>
+        <div className="content">
           {route.view === 'servers' && <ServersHome servers={servers} onOpen={id => go('server', { id, tab: 'monitor' })} onAction={doAction} onNew={() => go('new')} />}
           {route.view === 'server' && current && (
             <ServerDetail server={current} tab={route.tab} setTab={tab => setRoute(r => ({ ...r, tab }))}
@@ -331,16 +331,12 @@ function App() {
             <NewServerWizard layout="stepped" settingsTreatment="grouped"
               setFooterHints={setHints}
               onCancel={() => go('servers')}
-              onDone={({ name, platform, version, settings }) => {
-                const id = name.toLowerCase().replace(/[^a-z0-9]+/g, '-');
-                const ns = makeServer({ id, name, type: platform, version, status: 'booting', port: 25565,
-                  ...settings, players: [] });
-                setServers(prev => [...prev.filter(s => s.id !== id), ns]);
-                setTimeout(() => setServers(prev => prev.map(s => s.id === id ? bootUp(s) : s)), 1700);
-                go('server', { id, tab: 'monitor' });
+              onDone={({ name }) => {
+                loadServers();
+                go('server', { id: name, tab: 'monitor' });
               }} />
           )}
-          {route.view === 'settings' && <GlobalSettings tweaks={t} />}
+          {route.view === 'settings' && <GlobalSettings />}
         </div>
         <Footer hints={hints} right={
           <div className="status-mini"><span className="dot run" />OxideMC daemon · localhost:7878</div>
