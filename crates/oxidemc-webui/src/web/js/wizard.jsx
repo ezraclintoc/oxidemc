@@ -295,23 +295,25 @@ function StepBody({ step, name, setName, nameErr, platform, setPlatform, version
     ['RCON', settings.rcon_enabled ? 'enabled' : 'disabled'],
   ];
   return (
-    <div className="panel" style={{ maxWidth: 560, overflow: 'hidden' }}>
-      <div className="panel-h"><span className="t">Summary</span><span className="row" style={{ marginLeft: 'auto', gap: 8 }}><PlatformLogo id={platform} size={20} /></span></div>
-      <div style={{ padding: '6px 0' }}>
-        {rows.map(([k, v], i) => (
-          <div key={k} style={{ display: 'grid', gridTemplateColumns: '160px 1fr', gap: 14, padding: '8px 16px',
-            borderTop: i ? '1px solid var(--border-soft)' : 0 }}>
-            <span style={{ fontSize: 13, color: 'var(--text-dim)' }}>{k}</span>
-            <span className="val truncate" style={{ fontSize: 13 }}>{String(v)}</span>
-          </div>
-        ))}
+    <>
+      <div className="panel" style={{ maxWidth: 560, overflow: 'hidden' }}>
+        <div className="panel-h"><span className="t">Summary</span><span className="row" style={{ marginLeft: 'auto', gap: 8 }}><PlatformLogo id={platform} size={20} /></span></div>
+        <div style={{ padding: '6px 0' }}>
+          {rows.map(([k, v], i) => (
+            <div key={k} style={{ display: 'grid', gridTemplateColumns: '160px 1fr', gap: 14, padding: '8px 16px',
+              borderTop: i ? '1px solid var(--border-soft)' : 0 }}>
+              <span style={{ fontSize: 13, color: 'var(--text-dim)' }}>{k}</span>
+              <span className="val truncate" style={{ fontSize: 13 }}>{String(v)}</span>
+            </div>
+          ))}
+        </div>
       </div>
-    </div>
-    <p style={{ fontSize: 11.5, color: 'var(--text-faint)', marginTop: 12, maxWidth: 560, lineHeight: 1.5 }}>
-      By clicking <strong style={{ color: 'var(--text-dim)' }}>Install</strong> you agree to{' '}
-      <a href="https://www.minecraft.net/en-us/eula" target="_blank" rel="noopener noreferrer"
-        style={{ color: 'var(--accent-bright)' }}>Mojang's End User License Agreement</a>.
-    </p>
+      <p style={{ fontSize: 11.5, color: 'var(--text-faint)', marginTop: 12, maxWidth: 560, lineHeight: 1.5 }}>
+        By clicking <strong style={{ color: 'var(--text-dim)' }}>Install</strong> you agree to{' '}
+        <a href="https://www.minecraft.net/en-us/eula" target="_blank" rel="noopener noreferrer"
+          style={{ color: 'var(--accent-bright)' }}>Mojang's End User License Agreement</a>.
+      </p>
+    </>
   );
 }
 
