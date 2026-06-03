@@ -36,8 +36,11 @@ pub async fn install(
     let dir = st.server_dir(&req.server_name);
     let dest = dir.join(oxidemc_core::downloader::jar_name(&req.server_type, &req.minecraft_version));
 
-    // persist oxide.json up front so the server shows in the list immediately
+    // persist oxide.json, eula.txt, and server.properties up front
     oxidemc_core::config::save_server_state(&req.state, &dir)?;
+    oxidemc_core::server::accept_eula(&dir)?;
+    oxidemc_core::server_properties::write_server_properties(&req.state, &dir)
+        .map_err(|e| std::io::Error::other(e.to_string()))?;
 
     // spawn the download; stream DownloadProgress over the install WS (see ws.rs).
     let (tx, mut rx) = tokio::sync::mpsc::channel(32);

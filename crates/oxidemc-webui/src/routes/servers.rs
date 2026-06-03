@@ -58,6 +58,8 @@ pub async fn update(
     // (Add field validation here — clamp ranges, RAM regex, RCON-password-required.)
     let dir = st.server_dir(&name);
     oxidemc_core::config::save_server_state(&body, &dir)?;
+    oxidemc_core::server_properties::write_server_properties(&body, &dir)
+        .map_err(|e| std::io::Error::other(e.to_string()))?;
     Ok(Json(body))
 }
 
