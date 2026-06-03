@@ -35,15 +35,32 @@ function StatusPill({ status }) {
   );
 }
 
-// ── platform logo placeholder slot (user fills later) ───────────────────────
+// ── platform logo ────────────────────────────────────────────────────────────
+const PLATFORM_LOGOS = {
+  paper:    'https://assets.papermc.io/brand/papermc_logo.512.png',
+  fabric:   'https://external-content.duckduckgo.com/iu/?u=https%3A%2F%2Ftse1.mm.bing.net%2Fth%2Fid%2FOIP.DiTgziatP79MI51rjIajIQAAAA%3Fpid%3DApi&f=1&ipt=a4d0c8f7cc0001338c1ed6f028ac560822e7bcc6fce8c412508d881a140b1aaf&ipo=images',
+  forge:    'https://external-content.duckduckgo.com/iu/?u=https%3A%2F%2Ftse3.mm.bing.net%2Fth%2Fid%2FOIP.MGlp7vrAZcdLgOAkz_UVtAAAAA%3Fr%3D0%26pid%3DApi&f=1&ipt=fe50e6f3e9a840733e7093d1214b12610303a5181949b3b50ffee4bf558c59c6&ipo=images',
+  purpur:   'https://purpurmc.org/docs/images/purpur-small.png',
+  neoforge: 'https://external-content.duckduckgo.com/iu/?u=https%3A%2F%2Fthfvnext.bing.com%2Fth%2Fid%2FOIP.pPLlTvSGDeu55Tw39Yp67gHaGc%3Fcb%3Dthfvnextfalcon%26pid%3DApi&f=1&ipt=6d2e1e60f1d58203ffbd689b7c6c8e5a18807667cb642b0ed8badacd2e83afeb&ipo=images',
+};
+
 function PlatformLogo({ id, size = 44, tone }) {
+  const src = PLATFORM_LOGOS[id];
+  const r = Math.round(size * 0.23);
+  if (src) {
+    return (
+      <div style={{ width: size, height: size, borderRadius: 10, flex: 'none', overflow: 'hidden',
+        background: 'var(--inset)', border: '1px solid var(--border-soft)', display: 'grid', placeItems: 'center' }}>
+        <img src={src} alt={id} style={{ width: size * 0.78, height: size * 0.78, objectFit: 'contain' }} />
+      </div>
+    );
+  }
   return (
-    <div className="ph" style={{
-      width: size, height: size, borderRadius: 10, flex: 'none',
-      flexDirection: 'column', gap: 2, position: 'relative', overflow: 'hidden',
-    }}>
-      <div style={{ width: size*0.34, height: size*0.34, borderRadius: 6, border: `1.5px solid ${tone || 'var(--text-faint)'}`, opacity: .55 }} />
-      <span style={{ fontSize: 8, color: 'var(--text-faint)', letterSpacing: '.02em' }}>{id}.png</span>
+    <div style={{ width: size, height: size, borderRadius: 10, flex: 'none', overflow: 'hidden',
+      background: 'var(--inset)', border: '1px solid var(--border-soft)', display: 'grid', placeItems: 'center',
+      fontFamily: 'var(--mono)', fontSize: size * 0.28, fontWeight: 700, color: tone || 'var(--text-dim)',
+      textTransform: 'uppercase', letterSpacing: '-.02em' }}>
+      {id.slice(0, 2)}
     </div>
   );
 }
@@ -173,6 +190,6 @@ function PlayerHead({ name, size = 26 }) {
 }
 
 Object.assign(window, {
-  Kbd, Footer, StatusPill, STATUS_LABEL, STATUS_CLASS, PlatformLogo,
+  Kbd, Footer, StatusPill, STATUS_LABEL, STATUS_CLASS, PlatformLogo, PLATFORM_LOGOS,
   Toggle, Gauge, BarMeter, AreaChart, Stat, PlayerHead,
 });

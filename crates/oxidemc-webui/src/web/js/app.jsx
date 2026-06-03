@@ -281,12 +281,40 @@ function App() {
 
   const go = (view, extra = {}) => setRoute(r => ({ ...r, view, ...extra }));
 
+  useEffectA(() => {
+    const handler = (e) => {
+      const tag = e.target.tagName;
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || e.target.isContentEditable) return;
+      if (route.view === 'servers') {
+        if (e.key === 'n' || e.key === 'N') go('new');
+      } else if (route.view === 'server') {
+        if (e.key === 'Escape') go('servers', { id: null });
+        if (e.key === 'Tab') { e.preventDefault(); setRoute(r => ({ ...r, tab: r.tab === 'monitor' ? 'configure' : 'monitor' })); }
+        if ((e.key === 's' || e.key === 'S') && current) {
+          if (route.tab === 'monitor') doAction(current.id, current.status === 'running' ? 'stop' : 'start');
+          else saveServer(current.id);
+        }
+      } else if (route.view === 'settings' || route.view === 'new') {
+        if (e.key === 'Escape') go('servers', { id: null });
+      }
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [route, current]);
+
   return (
     <div className="app" data-bg="deep" data-border="boxed" style={{ ['--accent']: ACCENT_HEX }}>
       {/* sidebar */}
       <aside className="sidebar">
         <div className="brand">
-          <img className="brand-logo" src="assets/logo.png" alt="OxideMC" />
+          <svg width="34" height="34" viewBox="0 0 34 34" fill="none" style={{ flex: 'none' }}>
+            <rect width="34" height="34" rx="8" fill="var(--accent)" opacity="0.15"/>
+            <rect x="1" y="1" width="32" height="32" rx="7" stroke="var(--accent)" strokeWidth="1.2" opacity="0.5"/>
+            <rect x="7" y="8" width="20" height="7" rx="2" fill="var(--accent)" opacity="0.85"/>
+            <rect x="7" y="19" width="20" height="7" rx="2" fill="var(--accent)" opacity="0.55"/>
+            <circle cx="10.5" cy="11.5" r="1.5" fill="var(--accent-bright)"/>
+            <circle cx="10.5" cy="22.5" r="1.5" fill="var(--accent-bright)" opacity="0.6"/>
+          </svg>
           <div className="col">
             <span className="brand-name">Oxide<b>MC</b></span>
             <span className="brand-sub">server manager</span>
@@ -334,8 +362,8 @@ function App() {
               setFooterHints={setHints}
               onCancel={() => go('servers')}
               onDone={({ name }) => {
-                loadServers();
                 go('server', { id: name, tab: 'monitor' });
+                doAction(name, 'start');
               }} />
           )}
           {route.view === 'settings' && <GlobalSettings />}
