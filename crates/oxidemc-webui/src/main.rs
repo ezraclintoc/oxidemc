@@ -8,7 +8,7 @@ use axum::Router;
 use state::AppState;
 use std::net::SocketAddr;
 use tower_http::cors::CorsLayer;
-use tower_http::services::ServeDir;
+use tower_http::services::{ServeDir, ServeFile};
 use tower_http::trace::TraceLayer;
 
 #[tokio::main]
@@ -38,10 +38,10 @@ async fn main() -> anyhow::Result<()> {
         .nest("/api", api)
         // ── live Monitor socket (console + metrics + command input) ──────────
         .route("/ws/servers/:name", get(ws::monitor))
-        // ── serve the built React SPA; unknown paths fall back to index.html ─
+        // ── serve the React SPA; unknown paths fall back to index.html ─────────
         .fallback_service(
-            ServeDir::new("oxidemc-webui/web/dist")
-                .not_found_service(ServeDir::new("oxidemc-webui/web/dist")),
+            ServeDir::new("crates/oxidemc-webui/src/web")
+                .not_found_service(ServeFile::new("crates/oxidemc-webui/src/web/index.html")),
         )
         .layer(TraceLayer::new_for_http())
         .layer(CorsLayer::permissive()) // tighten for production
