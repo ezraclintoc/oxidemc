@@ -1,5 +1,5 @@
 // ============================================================================
-// components.jsx — shared UI primitives for OxideMC web
+// components.jsx -- shared UI primitives for OxideMC web
 // ============================================================================
 const { useState, useEffect, useRef, useMemo } = React;
 
@@ -22,7 +22,7 @@ function Footer({ hints = [], right = null }) {
 }
 
 // ── status helpers ──────────────────────────────────────────────────────────
-const STATUS_LABEL = { running:'running', stopped:'stopped', booting:'starting…', error:'error' };
+const STATUS_LABEL = { running:'running', stopped:'stopped', booting:'starting...', error:'error' };
 const STATUS_CLASS = { running:'run', stopped:'stop', booting:'boot', error:'err' };
 
 function StatusPill({ status }) {
@@ -37,11 +37,11 @@ function StatusPill({ status }) {
 
 // ── platform logo ────────────────────────────────────────────────────────────
 const PLATFORM_LOGOS = {
-  paper:    'https://assets.papermc.io/brand/papermc_logo.512.png',
-  fabric:   'https://external-content.duckduckgo.com/iu/?u=https%3A%2F%2Ftse1.mm.bing.net%2Fth%2Fid%2FOIP.DiTgziatP79MI51rjIajIQAAAA%3Fpid%3DApi&f=1&ipt=a4d0c8f7cc0001338c1ed6f028ac560822e7bcc6fce8c412508d881a140b1aaf&ipo=images',
-  forge:    'https://external-content.duckduckgo.com/iu/?u=https%3A%2F%2Ftse3.mm.bing.net%2Fth%2Fid%2FOIP.MGlp7vrAZcdLgOAkz_UVtAAAAA%3Fr%3D0%26pid%3DApi&f=1&ipt=fe50e6f3e9a840733e7093d1214b12610303a5181949b3b50ffee4bf558c59c6&ipo=images',
-  purpur:   'https://purpurmc.org/docs/images/purpur-small.png',
-  neoforge: 'https://external-content.duckduckgo.com/iu/?u=https%3A%2F%2Fthfvnext.bing.com%2Fth%2Fid%2FOIP.pPLlTvSGDeu55Tw39Yp67gHaGc%3Fcb%3Dthfvnextfalcon%26pid%3DApi&f=1&ipt=6d2e1e60f1d58203ffbd689b7c6c8e5a18807667cb642b0ed8badacd2e83afeb&ipo=images',
+  vanilla:  'assets/vanilla.png',
+  paper:    'assets/paper.png',
+  fabric:   'assets/fabric.png',
+  neoforge: 'assets/neoforge.png',
+  purpur:   'assets/purpur.png',
 };
 
 function PlatformLogo({ id, size = 44, tone }) {

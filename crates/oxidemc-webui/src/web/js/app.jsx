@@ -1,5 +1,5 @@
 // ============================================================================
-// app.jsx — OxideMC web shell: sidebar nav, router, servers list, server
+// app.jsx -- OxideMC web shell: sidebar nav, router, servers list, server
 //           detail (Monitor/Configure tabs), global settings, Tweaks.
 // ============================================================================
 const { useState: useStateA, useEffect: useEffectA, useMemo: useMemoA } = React;
@@ -35,7 +35,7 @@ function ServerCard({ server, onOpen, onAction }) {
             <button className="btn sm grow" onClick={() => onAction(server.id, 'restart')}><Icon name="restart" size={13} />Restart</button>
           </>
         ) : server.status === 'booting' ? (
-          <button className="btn sm grow" disabled><span className="spin" style={{ width: 12, height: 12, border: '2px solid var(--border)', borderTopColor: 'var(--accent)', borderRadius: '50%' }} />starting…</button>
+          <button className="btn sm grow" disabled><span className="spin" style={{ width: 12, height: 12, border: '2px solid var(--border)', borderTopColor: 'var(--accent)', borderRadius: '50%' }} />starting...</button>
         ) : (
           <button className="btn sm primary grow" onClick={() => onAction(server.id, 'start')}><Icon name="play" size={13} />Start</button>
         )}
@@ -73,7 +73,7 @@ function ServersHome({ servers, onOpen, onAction, onNew }) {
         <div className="grow" />
         <div className="row panel" style={{ gap: 8, padding: '0 12px', height: 40, minWidth: 220 }}>
           <span style={{ color: 'var(--text-faint)' }}><Icon name="search" size={15} /></span>
-          <input className="input" value={q} onChange={e => setQ(e.target.value)} placeholder="filter servers…"
+          <input className="input" value={q} onChange={e => setQ(e.target.value)} placeholder="filter servers..."
             style={{ border: 0, background: 'transparent', height: 38, paddingLeft: 0 }} />
         </div>
       </div>
@@ -152,7 +152,7 @@ function ServerDetail({ server, tab, setTab, onAction, onBack, onChange, onSave,
                 <button className="btn" onClick={() => onAction(server.id, 'restart')}><Icon name="restart" size={15} />Restart</button>
               </>
             ) : server.status === 'booting' ? (
-              <button className="btn" disabled><span className="spin" style={{ width: 13, height: 13, border: '2px solid var(--border)', borderTopColor: 'var(--accent)', borderRadius: '50%' }} />starting…</button>
+              <button className="btn" disabled><span className="spin" style={{ width: 13, height: 13, border: '2px solid var(--border)', borderTopColor: 'var(--accent)', borderRadius: '50%' }} />starting...</button>
             ) : (
               <button className="btn primary" onClick={() => onAction(server.id, 'start')}><Icon name="play" size={15} />Start</button>
             )}
@@ -170,14 +170,16 @@ function ServerDetail({ server, tab, setTab, onAction, onBack, onChange, onSave,
         </div>
       </div>
       <div className="content" style={{ padding: tab === 'monitor' ? '20px 38px 30px' : '24px 38px 40px' }}>
-        {tab === 'monitor'
-          ? <MonitorView key={server.id + server.status} server={server} layout={monitorLayout} />
-          : (
+        {/* Keep MonitorView mounted so WebSocket + console log survive tab switches */}
+        <div style={{ display: tab === 'monitor' ? undefined : 'none' }}>
+          <MonitorView key={server.id} server={server} layout={monitorLayout} />
+        </div>
+        {tab === 'configure' && (
             <div style={{ maxWidth: 920 }}>
               <div className="row" style={{ marginBottom: 16, gap: 10 }}>
-                <span className="kicker">Editing {server.name} · oxide.json</span>
+                <span className="kicker">Editing {server.name} . oxide.json</span>
                 <div className="grow" />
-                {!configState && <span style={{ fontSize: 11, color: 'var(--text-faint)' }}>loading…</span>}
+                {!configState && <span style={{ fontSize: 11, color: 'var(--text-faint)' }}>loading...</span>}
                 <button className="btn sm primary" disabled={!configState} onClick={() => onSave(server.id, configState)}><Icon name="check" size={13} />Save</button>
               </div>
               <SettingsForm values={configValues} onChange={handleConfigChange} treatment={settingsTreatment} />
@@ -199,7 +201,7 @@ function GlobalSettings({ onToast }) {
   }, []);
 
   if (err) return <div className="content-pad" style={{ color: 'var(--red)', fontSize: 13 }}><Icon name="alert" size={14} /> Failed to load settings: {err}</div>;
-  if (!m) return <div className="content-pad" style={{ color: 'var(--text-dim)', fontSize: 13 }}>Loading…</div>;
+  if (!m) return <div className="content-pad" style={{ color: 'var(--text-dim)', fontSize: 13 }}>Loading...</div>;
 
   const set = (k, v) => setM(s => ({ ...s, [k]: { ...s[k], default: v } }));
   const save = () => {
@@ -223,12 +225,12 @@ function GlobalSettings({ onToast }) {
   return (
     <div className="content-pad fade-in" style={{ maxWidth: 820 }}>
       <div className="pagehead"><div>
-        <div className="kicker" style={{ marginBottom: 8 }}>Manage · manage.json</div>
+        <div className="kicker" style={{ marginBottom: 8 }}>Manage . manage.json</div>
         <h1>OxideMC settings</h1>
         <p>Global preferences applied to every server OxideMC creates and manages.</p>
       </div>
       <button className="btn primary" onClick={save} disabled={saving}>
-        {saving ? 'Saving…' : 'Save changes'}
+        {saving ? 'Saving...' : 'Save changes'}
       </button>
       </div>
 
@@ -401,7 +403,7 @@ function App() {
           {route.view === 'settings' && <GlobalSettings onToast={showToast} />}
         </div>
         <Footer hints={hints} right={
-          <div className="status-mini"><span className="dot run" />OxideMC daemon · localhost:7878</div>
+          <div className="status-mini"><span className="dot run" />OxideMC daemon . localhost:7878</div>
         } />
       </div>
 

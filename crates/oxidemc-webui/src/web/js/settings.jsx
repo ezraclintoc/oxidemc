@@ -1,5 +1,5 @@
 // ============================================================================
-// settings.jsx — settings form used by the Configure tab AND the install wizard.
+// settings.jsx -- settings form used by the Configure tab AND the install wizard.
 //   treatment: 'inline' | 'drawer' | 'grouped'   (a variation dimension)
 // ============================================================================
 const { useState: useStateS, useRef: useRefS, useEffect: useEffectS } = React;
@@ -7,7 +7,7 @@ const { useState: useStateS, useRef: useRefS, useEffect: useEffectS } = React;
 function validateField(f, v, values) {
   if (f.kind === 'number') {
     if (v === '' || isNaN(+v)) return 'Enter a number';
-    if (+v < f.min || +v > f.max) return `Must be ${f.min}–${f.max}`;
+    if (+v < f.min || +v > f.max) return `Must be ${f.min}-${f.max}`;
   }
   if (f.kind === 'ram') {
     if (!/^\d+[GMgm]$/.test(v)) return 'Format: digits + G or M (e.g. 2G, 512M)';
@@ -57,7 +57,7 @@ function FieldControl({ f, value, values, onChange, autoFocus }) {
 // editor body (used in popover + drawer): label, control, hint, validation, actions
 function FieldEditor({ f, values, draft, setDraft, onSave, onCancel }) {
   const err = validateField(f, draft, values);
-  const rangeHint = f.kind === 'number' ? `${f.min}–${f.max}` : f.kind === 'ram' ? 'digits + G/M' : f.unit || '';
+  const rangeHint = f.kind === 'number' ? `${f.min}-${f.max}` : f.kind === 'ram' ? 'digits + G/M' : f.unit || '';
   return (
     <div className="col" style={{ gap: 12 }}>
       <div className="row" style={{ justifyContent: 'space-between' }}>
@@ -138,7 +138,7 @@ function SettingsForm({ values, onChange, treatment = 'inline' }) {
                         <label style={{ fontSize: 12.5, color: 'var(--text-mid)' }}>{f.label}</label>
                         {(f.kind === 'number' || f.kind === 'ram') &&
                           <span className="mono" style={{ fontSize: 10.5, color: 'var(--text-faint)' }}>
-                            {f.kind === 'number' ? `${f.min}–${f.max}` : 'G/M'}</span>}
+                            {f.kind === 'number' ? `${f.min}-${f.max}` : 'G/M'}</span>}
                       </div>
                       <FieldControl f={f} value={values[f.key]} values={values}
                         onChange={(v) => onChange(f.key, coerce(f, v))} />

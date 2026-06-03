@@ -1,5 +1,5 @@
 // ============================================================================
-// data.jsx — mock data + icon set, shared across OxideMC web screens
+// data.jsx -- mock data + icon set, shared across OxideMC web screens
 // ============================================================================
 
 // ── Icon set (line icons, 1.6 stroke) ──────────────────────────────────────
@@ -97,11 +97,11 @@ const SETTINGS_SCHEMA = [
   ]},
 ];
 
-function cleanMotd(s) { return (s || '').replace(/§[0-9a-fk-or]/gi, ''); }
+function cleanMotd(s) { return (s || '').replace(/\u00A7[0-9a-fk-or]/gi, ''); }
 
 function displayVal(f, v) {
   if (f.kind === 'toggle') return v ? 'enabled' : 'disabled';
-  if (f.kind === 'password') return v ? '••••••••' : '(not set)';
+  if (f.kind === 'password') return v ? '********' : '(not set)';
   if (f.key === 'motd') return cleanMotd(v) || '(empty)';
   if (v === '' || v == null) return '(empty)';
   return f.unit ? `${v} ${f.unit}` : String(v);
@@ -121,10 +121,10 @@ function makeServer(o) {
 
 const SERVERS = [
   makeServer({ id:'survival',  name:'survival-smp',  type:'paper',    version:'1.21.4', status:'running', port:25565,
-    motd:'§6Oxide SMP §7• season 4', max_players:40, players:['Notch','jeb_','EnderQueen','pixelmancer','oak_log'],
+    motd:'\u00A76Oxide SMP \u00A77* season 4', max_players:40, players:['Notch','jeb_','EnderQueen','pixelmancer','oak_log'],
     max_ram:'6G', cpu:34, ram:62, tps:19.9, uptimeH:142, difficulty:'hard', pvp:true, whitelist:true }),
   makeServer({ id:'creative',  name:'build-world',   type:'purpur',   version:'1.21.4', status:'running', port:25566,
-    motd:'Creative flat • /plot', max_players:20, players:['Dinnerbone','Grumm'], gamemode:'creative',
+    motd:'Creative flat * /plot', max_players:20, players:['Dinnerbone','Grumm'], gamemode:'creative',
     max_ram:'4G', cpu:12, ram:38, tps:20.0, uptimeH:71, difficulty:'peaceful', pvp:false }),
   makeServer({ id:'modded',    name:'create-pack',   type:'forge',    version:'1.20.1', status:'stopped', port:25567,
     motd:'Create: Above & Beyond', max_players:12, players:[], max_ram:'8G', cpu:0, ram:0, tps:0, uptimeH:0, difficulty:'normal' }),

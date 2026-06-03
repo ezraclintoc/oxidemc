@@ -1,5 +1,5 @@
 // ============================================================================
-// wizard.jsx — "New Server" install wizard.
+// wizard.jsx -- "New Server" install wizard.
 //   layout: 'single' | 'split' | 'stepped'   (a variation dimension)
 // ============================================================================
 const { useState: useStateW, useEffect: useEffectW, useRef: useRefW } = React;
@@ -8,7 +8,7 @@ const WIZ_STEPS = [
   { key: 'name',     label: 'Name',     title: 'Name your server',     sub: 'A human-readable name. The directory is derived from it.' },
   { key: 'platform', label: 'Platform', title: 'Choose a platform',    sub: 'Server software to download and run.' },
   { key: 'version',  label: 'Version',  title: 'Choose a version',     sub: 'Minecraft version. "latest" always picks newest stable.' },
-  { key: 'settings', label: 'Settings', title: 'Configure settings',   sub: 'Optional — every field has a sensible default.' },
+  { key: 'settings', label: 'Settings', title: 'Configure settings',   sub: 'Optional -- every field has a sensible default.' },
   { key: 'review',   label: 'Review',   title: 'Review & install',     sub: 'Confirm your choices before downloading.' },
 ];
 
@@ -196,7 +196,7 @@ function NewServerWizard({ layout = 'split', settingsTreatment = 'grouped', onDo
         ))}
       </div>
       <div style={{ marginBottom: 22 }}>
-        <div className="kicker" style={{ marginBottom: 8 }}>Step {step + 1} / {WIZ_STEPS.length} — {cur.label}</div>
+        <div className="kicker" style={{ marginBottom: 8 }}>Step {step + 1} / {WIZ_STEPS.length} -- {cur.label}</div>
         <h1 className="sans" style={{ margin: 0, fontSize: 26, fontWeight: 600, letterSpacing: '-.02em' }}>{cur.title}</h1>
         <p style={{ margin: '7px 0 0', color: 'var(--text-dim)', fontSize: 13 }}>{cur.sub}</p>
       </div>
@@ -224,7 +224,7 @@ function StepBody({ step, name, setName, nameErr, platform, setPlatform, version
             style={{ borderRadius: '0 5px 5px 0' }} />
         </div>
         {nameErr ? <span className="row" style={{ gap: 6, fontSize: 12, color: 'var(--red)' }}><Icon name="alert" size={13} />{nameErr}</span>
-                 : <span style={{ fontSize: 12, color: 'var(--text-dim)' }}>Directory: <span className="val">~/servers/{name || '…'}</span></span>}
+                 : <span style={{ fontSize: 12, color: 'var(--text-dim)' }}>Directory: <span className="val">~/servers/{name || '...'}</span></span>}
       </div>
     );
   }
@@ -328,7 +328,7 @@ function DownloadView({ name, platform, version, progress }) {
       </div>
       <div className="panel" style={{ padding: 20 }}>
         <div className="row" style={{ justifyContent: 'space-between', marginBottom: 10 }}>
-          <span className="mono" style={{ fontSize: 12, color: 'var(--text-dim)' }}>{progress >= 100 ? 'finalizing…' : 'fetching JAR'}</span>
+          <span className="mono" style={{ fontSize: 12, color: 'var(--text-dim)' }}>{progress >= 100 ? 'finalizing...' : 'fetching JAR'}</span>
           <span className="val mono-num" style={{ fontSize: 14, fontWeight: 600 }}>{Math.round(progress)}%</span>
         </div>
         <div style={{ height: 12, borderRadius: 999, background: 'var(--inset)', overflow: 'hidden', border: '1px solid var(--border)' }}>
@@ -337,9 +337,9 @@ function DownloadView({ name, platform, version, progress }) {
         </div>
         <div className="col mono" style={{ gap: 3, marginTop: 16, fontSize: 11.5, color: 'var(--text-faint)' }}>
           <span style={{ color: 'var(--green)' }}>✓ resolved {platform} build for {version}</span>
-          <span style={{ color: progress > 30 ? 'var(--green)' : 'var(--text-faint)' }}>{progress > 30 ? '✓' : '·'} accepted EULA</span>
-          <span style={{ color: progress > 60 ? 'var(--green)' : 'var(--text-faint)' }}>{progress > 60 ? '✓' : '·'} wrote server.properties</span>
-          <span style={{ color: progress >= 100 ? 'var(--green)' : 'var(--text-faint)' }}>{progress >= 100 ? '✓' : '·'} generated start script</span>
+          <span style={{ color: progress > 30 ? 'var(--green)' : 'var(--text-faint)' }}>{progress > 30 ? '✓' : '.'} accepted EULA</span>
+          <span style={{ color: progress > 60 ? 'var(--green)' : 'var(--text-faint)' }}>{progress > 60 ? '✓' : '.'} wrote server.properties</span>
+          <span style={{ color: progress >= 100 ? 'var(--green)' : 'var(--text-faint)' }}>{progress >= 100 ? '✓' : '.'} generated start script</span>
         </div>
       </div>
     </div>

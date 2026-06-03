@@ -1,5 +1,5 @@
 // ============================================================================
-// monitor.jsx — per-server Monitor tab: gauges, TPS graph, players, live console
+// monitor.jsx -- per-server Monitor tab: gauges, TPS graph, players, live console
 //   layout: 'grid' | 'focus'   (a variation dimension)
 // ============================================================================
 const { useState: useStateM, useEffect: useEffectM, useRef: useRefM } = React;
@@ -80,7 +80,7 @@ function Console({ log, onSend, running, rconEnabled = true, height = 'auto', fl
       <div ref={bodyRef} style={{ flex: 1, minHeight: 0, overflowY: 'auto', padding: '10px 14px', background: 'var(--bg-sink)',
         fontFamily: 'var(--mono)', fontSize: 12, lineHeight: 1.65, height: height }}>
         {log.length === 0 && <div style={{ color: 'var(--text-faint)', padding: '20px 0', textAlign: 'center' }}>
-          {running ? 'Waiting for console output…' : 'Server is offline. Start it to stream the console.'}
+          {running ? 'Waiting for console output...' : 'Server is offline. Start it to stream the console.'}
         </div>}
         {log.map((l, i) => (
           <div key={i} className="row" style={{ gap: 8, alignItems: 'baseline', flexWrap: 'wrap' }}>
@@ -93,7 +93,7 @@ function Console({ log, onSend, running, rconEnabled = true, height = 'auto', fl
       <form onSubmit={submit} className="row" style={{ gap: 8, padding: 10, borderTop: '1px solid var(--border)', background: 'var(--panel)' }}>
         <span className="mono" style={{ color: canSend ? 'var(--accent-bright)' : 'var(--text-faint)', fontSize: 14, paddingLeft: 4 }}>/</span>
         <input className="input" value={cmd} onChange={e => setCmd(e.target.value)} disabled={!canSend}
-          placeholder={!running ? 'start the server to send commands' : !rconEnabled ? 'RCON disabled — enable it in Configure to send commands' : 'type an RCON command — try "list" or "say hi"'}
+          placeholder={!running ? 'start the server to send commands' : !rconEnabled ? 'RCON disabled -- enable it in Configure to send commands' : 'type an RCON command -- try "list" or "say hi"'}
           style={{ border: 0, background: 'transparent', height: 28, paddingLeft: 0 }} />
         <button className="btn sm primary" type="submit" disabled={!canSend || !cmd.trim()}><Icon name="send" size={13} />Send</button>
       </form>
@@ -126,7 +126,7 @@ function Players({ players = [], maxPlayers }) {
 
 // ── monitor view ────────────────────────────────────────────────────────────
 function fmtUptime(secs) {
-  if (!secs) return '—';
+  if (!secs) return '--';
   const d = Math.floor(secs / 86400), h = Math.floor((secs % 86400) / 3600), m = Math.floor((secs % 3600) / 60);
   if (d > 0) return `${d}d ${h}h`;
   if (h > 0) return `${h}h ${m}m`;
@@ -137,7 +137,7 @@ function MonitorView({ server, layout = 'grid' }) {
   const live = useLiveServer(server);
   const running = server.status === 'running';
   const rconEnabled = server.rcon_enabled !== false;
-  const tpsLabel = live.tps != null ? live.tps.toFixed(1) : '—';
+  const tpsLabel = live.tps != null ? live.tps.toFixed(1) : '--';
   const playerCount = live.players.length;
   const maxRam = server.max_ram || '2G';
 
@@ -145,7 +145,7 @@ function MonitorView({ server, layout = 'grid' }) {
     <div className="row" style={{ gap: 10, padding: '10px 14px', borderRadius: 7, background: 'color-mix(in oklch, var(--amber) 10%, transparent)',
       border: '1px solid color-mix(in oklch, var(--amber) 35%, transparent)', fontSize: 12.5, color: 'var(--amber)' }}>
       <Icon name="alert" size={14} />
-      <span><strong>RCON is disabled</strong> — TPS and command input are unavailable.
+      <span><strong>RCON is disabled</strong> -- TPS and command input are unavailable.
         Enable RCON in the <strong>Configure</strong> tab to unlock live management.</span>
     </div>
   );
@@ -154,10 +154,10 @@ function MonitorView({ server, layout = 'grid' }) {
     <div className="panel" style={{ display: 'flex', gap: 0, flexWrap: 'wrap' }}>
       {[
         ['power', 'Status', STATUS_LABEL[server.status]],
-        ['clock', 'Uptime', running ? fmtUptime(live.uptimeSecs) : '—'],
+        ['clock', 'Uptime', running ? fmtUptime(live.uptimeSecs) : '--'],
         ['chip', 'Version', `${server.type} ${server.version}`],
         ['globe', 'Port', server.port],
-        ['monitor', 'TPS', running ? tpsLabel : '—'],
+        ['monitor', 'TPS', running ? tpsLabel : '--'],
       ].map(([ic, lb, v], i) => (
         <div key={lb} style={{ flex: '1 1 130px', padding: '14px 18px', borderLeft: i ? '1px solid var(--border-soft)' : 0 }}>
           <Stat icon={ic} label={lb} value={v} accent={lb === 'TPS' || lb === 'Port'} />
@@ -172,7 +172,7 @@ function MonitorView({ server, layout = 'grid' }) {
         <span style={{ color: 'var(--accent-bright)' }}><Icon name="monitor" size={15} /></span>
         <span className="t">Ticks / second</span>
         <span className="row" style={{ marginLeft: 'auto', gap: 10 }}>
-          <span className="val mono-num" style={{ fontSize: 17, fontWeight: 600, color: running && !rconEnabled ? 'var(--text-faint)' : undefined }}>{running ? tpsLabel : '—'}</span>
+          <span className="val mono-num" style={{ fontSize: 17, fontWeight: 600, color: running && !rconEnabled ? 'var(--text-faint)' : undefined }}>{running ? tpsLabel : '--'}</span>
           {live.tps != null && <span style={{ fontSize: 11, color: 'var(--text-faint)' }}>/ 20.0</span>}
           {running && !rconEnabled && <span className="row" style={{ gap: 5, fontSize: 10, color: 'var(--amber)', opacity: 0.8 }}><Icon name="alert" size={11} />needs RCON</span>}
         </span>
@@ -195,7 +195,7 @@ function MonitorView({ server, layout = 'grid' }) {
       </div>
       <div className="col" style={{ gap: 12, padding: '6px 18px 18px' }}>
         <BarMeter label="Heap (-Xmx)" value={running ? live.ram : 0} max={100}
-          valueLabel={`${maxRam.replace(/[gG]/,'').replace(/[mM]/,'')}${maxRam.match(/[gG]/) ? 'G' : 'M'} · ${Math.round(live.ram/100*parseInt(maxRam))}G used`} />
+          valueLabel={`${maxRam.replace(/[gG]/,'').replace(/[mM]/,'')}${maxRam.match(/[gG]/) ? 'G' : 'M'} . ${Math.round(live.ram/100*parseInt(maxRam))}G used`} />
         <BarMeter label="Players" value={playerCount} max={server.max_players}
           valueLabel={`${playerCount}/${server.max_players}`} tone="var(--amber)" />
       </div>
