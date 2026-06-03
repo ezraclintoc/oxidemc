@@ -307,6 +307,11 @@ function StepBody({ step, name, setName, nameErr, platform, setPlatform, version
         ))}
       </div>
     </div>
+    <p style={{ fontSize: 11.5, color: 'var(--text-faint)', marginTop: 12, maxWidth: 560, lineHeight: 1.5 }}>
+      By clicking <strong style={{ color: 'var(--text-dim)' }}>Install</strong> you agree to{' '}
+      <a href="https://www.minecraft.net/en-us/eula" target="_blank" rel="noopener noreferrer"
+        style={{ color: 'var(--accent-bright)' }}>Mojang's End User License Agreement</a>.
+    </p>
   );
 }
 
