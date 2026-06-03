@@ -28,10 +28,10 @@ enum ClientMsg {
 
 async fn handle(mut socket: WebSocket, st: AppState, name: String) {
     // Subscribe to the live console + grab the metrics handle, if running.
-    let (mut console_rx, metrics) = {
+    let (mut console_rx, metrics, start_time) = {
         let running = st.running.lock().await;
         match running.get(&name) {
-            Some(r) => (r.console.subscribe(), r.metrics.clone()),
+            Some(r) => (r.console.subscribe(), r.metrics.clone(), r.start_time),
             None => {
                 let _ = socket
                     .send(Message::Text(
@@ -65,6 +65,7 @@ async fn handle(mut socket: WebSocket, st: AppState, name: String) {
                     "type": "metrics",
                     "cpu": m.cpu, "ram": m.ram, "ram_mb": m.ram_mb,
                     "tps": m.tps, "players": m.players,
+                    "uptime_secs": start_time.elapsed().as_secs(),
                 }).to_string();
                 if socket.send(Message::Text(frame)).await.is_err() { break; }
             }

@@ -95,9 +95,37 @@ function ServersHome({ servers, onOpen, onAction, onNew }) {
 }
 
 // ── server detail (tabs) ────────────────────────────────────────────────────
+function Toast({ msg, type = 'ok', onDone }) {
+  useEffectA(() => { const t = setTimeout(onDone, 2800); return () => clearTimeout(t); }, []);
+  const bg = type === 'err' ? 'var(--red)' : 'var(--green)';
+  return (
+    <div style={{ position: 'fixed', bottom: 64, left: '50%', transform: 'translateX(-50%)', zIndex: 200,
+      display: 'flex', alignItems: 'center', gap: 9, padding: '10px 18px', borderRadius: 8,
+      background: 'var(--panel-2)', border: `1px solid color-mix(in oklch, ${bg} 50%, transparent)`,
+      boxShadow: '0 8px 28px #000a', fontSize: 13, color: 'var(--text)', animation: 'fadeIn .15s ease' }}>
+      <Icon name={type === 'err' ? 'alert' : 'check'} size={14} style={{ color: bg }} />{msg}
+    </div>
+  );
+}
+
 function ServerDetail({ server, tab, setTab, onAction, onBack, onChange, onSave, monitorLayout, settingsTreatment }) {
   const running = server.status === 'running';
   const plat = PLATFORMS.find(p => p.id === server.type);
+
+  // Load full oxide.json when Configure tab opens so form shows real persisted values
+  const [configState, setConfigState] = useStateA(null);
+  useEffectA(() => {
+    if (tab !== 'configure') return;
+    apiFetch(`/api/servers/${server.id}`)
+      .then(s => setConfigState(serverStateToFlat(s, { status: server.status })))
+      .catch(console.error);
+  }, [tab, server.id]);
+
+  const configValues = configState || server;
+  const handleConfigChange = (k, v) => {
+    setConfigState(prev => ({ ...(prev || server), [k]: v }));
+    onChange(server.id, k, v);
+  };
   return (
     <div className="col" style={{ height: '100%', minHeight: 0 }}>
       <div style={{ padding: '22px 38px 0' }}>
@@ -149,9 +177,10 @@ function ServerDetail({ server, tab, setTab, onAction, onBack, onChange, onSave,
               <div className="row" style={{ marginBottom: 16, gap: 10 }}>
                 <span className="kicker">Editing {server.name} · oxide.json</span>
                 <div className="grow" />
-                <button className="btn sm primary" onClick={() => onSave(server.id)}><Icon name="check" size={13} />Save</button>
+                {!configState && <span style={{ fontSize: 11, color: 'var(--text-faint)' }}>loading…</span>}
+                <button className="btn sm primary" disabled={!configState} onClick={() => onSave(server.id, configState)}><Icon name="check" size={13} />Save</button>
               </div>
-              <SettingsForm values={server} onChange={(k, v) => onChange(server.id, k, v)} treatment={settingsTreatment} />
+              <SettingsForm values={configValues} onChange={handleConfigChange} treatment={settingsTreatment} />
             </div>
           )}
       </div>
@@ -160,11 +189,10 @@ function ServerDetail({ server, tab, setTab, onAction, onBack, onChange, onSave,
 }
 
 // ── global settings (Manage) ────────────────────────────────────────────────
-function GlobalSettings() {
+function GlobalSettings({ onToast }) {
   const [m, setM] = useStateA(null);
   const [err, setErr] = useStateA(null);
   const [saving, setSaving] = useStateA(false);
-  const [saved, setSaved] = useStateA(false);
 
   useEffectA(() => {
     apiFetch('/api/manage').then(setM).catch(e => setErr(e.message));
@@ -177,8 +205,8 @@ function GlobalSettings() {
   const save = () => {
     setSaving(true);
     apiFetch('/api/manage', { method: 'PUT', body: JSON.stringify(m) })
-      .then(updated => { setM(updated); setSaved(true); setTimeout(() => setSaved(false), 2000); })
-      .catch(console.error)
+      .then(updated => { setM(updated); onToast?.('Settings saved'); })
+      .catch(err => onToast?.('Save failed: ' + err.message, 'err'))
       .finally(() => setSaving(false));
   };
 
@@ -200,7 +228,7 @@ function GlobalSettings() {
         <p>Global preferences applied to every server OxideMC creates and manages.</p>
       </div>
       <button className="btn primary" onClick={save} disabled={saving}>
-        {saved ? <><Icon name="check" size={14} />Saved</> : saving ? 'Saving…' : 'Save changes'}
+        {saving ? 'Saving…' : 'Save changes'}
       </button>
       </div>
 
@@ -233,6 +261,8 @@ function App() {
   const [servers, setServers] = useStateA([]);
   const [route, setRoute] = useStateA({ view: 'servers', id: null, tab: 'monitor' });
   const [hints, setHints] = useStateA([]);
+  const [toast, setToast] = useStateA(null);
+  const showToast = (msg, type = 'ok') => setToast({ msg, type });
 
   const current = servers.find(s => s.id === route.id);
 
@@ -265,11 +295,13 @@ function App() {
 
   const changeServer = (id, k, v) => setServers(prev => prev.map(s => s.id === id ? { ...s, [k]: v } : s));
 
-  const saveServer = (id) => {
-    const s = servers.find(p => p.id === id);
+  const saveServer = (id, configSnapshot) => {
+    const s = configSnapshot || servers.find(p => p.id === id);
     if (!s) return;
     const state = flatToServerState(s.name, s.type, s.version, s);
-    apiFetch(`/api/servers/${id}`, { method: 'PUT', body: JSON.stringify(state) }).catch(console.error);
+    apiFetch(`/api/servers/${id}`, { method: 'PUT', body: JSON.stringify(state) })
+      .then(() => showToast('Settings saved'))
+      .catch(err => showToast('Save failed: ' + err.message, 'err'));
   };
 
   // default footer hints per view
@@ -366,13 +398,14 @@ function App() {
                 doAction(name, 'start');
               }} />
           )}
-          {route.view === 'settings' && <GlobalSettings />}
+          {route.view === 'settings' && <GlobalSettings onToast={showToast} />}
         </div>
         <Footer hints={hints} right={
           <div className="status-mini"><span className="dot run" />OxideMC daemon · localhost:7878</div>
         } />
       </div>
 
+      {toast && <Toast msg={toast.msg} type={toast.type} onDone={() => setToast(null)} />}
     </div>
   );
 }

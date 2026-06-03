@@ -34,6 +34,9 @@ pub struct RunningServer {
     pub console: broadcast::Sender<ConsoleLine>,
     /// latest metrics sample (updated by the poller task)
     pub metrics: Arc<RwLock<Metrics>>,
+    /// player list maintained by parsing console join/leave events
+    pub players: Arc<Mutex<Vec<String>>>,
+    pub start_time: std::time::Instant,
     #[allow(dead_code)]
     pub pid: u32,
 }
@@ -129,25 +132,52 @@ impl AppState {
         let metrics = Arc::new(RwLock::new(Metrics {
             cpu: 0.0, ram: 0.0, ram_mb: 0, tps: 0.0, players: vec![],
         }));
+        let players: Arc<Mutex<Vec<String>>> = Arc::new(Mutex::new(Vec::new()));
 
-        // pump stdout -> broadcast
+        // pump stdout -> broadcast + track join/leave for player list
         if let Some(stdout) = child.stdout.take() {
             let tx = console_tx.clone();
+            let pl = players.clone();
             tokio::spawn(async move {
                 let mut lines = BufReader::new(stdout).lines();
                 while let Ok(Some(line)) = lines.next_line().await {
-                    let _ = tx.send(parse_log_line(&line));
+                    let parsed = parse_log_line(&line);
+                    if parsed.msg.ends_with(" joined the game") {
+                        if let Some(n) = parsed.msg.strip_suffix(" joined the game") {
+                            let n = n.trim().to_string();
+                            if !n.is_empty() { pl.lock().await.push(n); }
+                        }
+                    } else if parsed.msg.ends_with(" left the game")
+                        || parsed.msg.contains(" lost connection:")
+                    {
+                        let n = parsed.msg
+                            .split_once(" left the game")
+                            .or_else(|| parsed.msg.split_once(" lost connection:"))
+                            .map(|(n, _)| n.trim().to_string());
+                        if let Some(n) = n {
+                            pl.lock().await.retain(|p| p != &n);
+                        }
+                    }
+                    let _ = tx.send(parsed);
                 }
             });
         }
 
-        // metrics poller (sysinfo) -> RwLock; see ws.rs for how it's read
+        // metrics poller (sysinfo + optional RCON TPS) -> RwLock
         let xmx = state.performance.max_ram.clone();
-        spawn_metrics_poller(pid, metrics.clone(), xmx);
+        let rcon_cfg = if state.network.rcon.enabled {
+            Some((state.network.rcon.port, state.network.rcon.password.clone()))
+        } else {
+            None
+        };
+        spawn_metrics_poller(pid, metrics.clone(), players.clone(), xmx, rcon_cfg);
 
         self.running.lock().await.insert(
             name.to_string(),
-            RunningServer { child, console: console_tx, metrics, pid },
+            RunningServer {
+                child, console: console_tx, metrics, players,
+                start_time: std::time::Instant::now(), pid,
+            },
         );
         Ok(())
     }
@@ -190,13 +220,19 @@ impl AppState {
     }
 }
 
-/// Spawn a 1.5s sysinfo poller that updates CPU/RAM and periodically asks RCON
-/// for the player list. Kept intentionally small — see comments for extension.
-fn spawn_metrics_poller(pid: u32, metrics: Arc<RwLock<Metrics>>, max_ram: String) {
+/// Spawn a 1.5s sysinfo poller. Every ~10s also polls RCON for TPS if enabled.
+fn spawn_metrics_poller(
+    pid: u32,
+    metrics: Arc<RwLock<Metrics>>,
+    players: Arc<Mutex<Vec<String>>>,
+    max_ram: String,
+    rcon_cfg: Option<(u16, String)>, // (port, password) if RCON enabled
+) {
     use sysinfo::{Pid, ProcessRefreshKind, ProcessesToUpdate, System};
     tokio::spawn(async move {
         let mut sys = System::new();
         let xmx_mb = parse_ram_mb(&max_ram);
+        let mut tick: u32 = 0;
         loop {
             sys.refresh_processes_specifics(
                 ProcessesToUpdate::Some(&[Pid::from_u32(pid)]),
@@ -205,16 +241,41 @@ fn spawn_metrics_poller(pid: u32, metrics: Arc<RwLock<Metrics>>, max_ram: String
             );
             if let Some(proc_) = sys.process(Pid::from_u32(pid)) {
                 let ram_mb = proc_.memory() / 1_048_576;
+                let current_players = players.lock().await.clone();
                 let mut m = metrics.write().await;
                 m.cpu = proc_.cpu_usage();
                 m.ram_mb = ram_mb;
                 m.ram = if xmx_mb > 0 { (ram_mb as f32 / xmx_mb as f32) * 100.0 } else { 0.0 };
+                m.players = current_players;
             } else {
                 break; // process gone
             }
+
+            // poll RCON for TPS every ~10s (every 7 ticks of 1.5s ≈ 10.5s)
+            tick += 1;
+            if tick % 7 == 0 {
+                if let Some((port, ref password)) = rcon_cfg {
+                    if let Ok(mut rcon) = oxidemc_core::rcon::RconClient::connect(
+                        "127.0.0.1", port, password,
+                    ).await {
+                        if let Ok(reply) = rcon.send_command("tps").await {
+                            if let Some(tps) = parse_tps(&reply) {
+                                metrics.write().await.tps = tps;
+                            }
+                        }
+                    }
+                }
+            }
+
             tokio::time::sleep(std::time::Duration::from_millis(1500)).await;
         }
     });
+}
+
+/// Parse TPS from vanilla/Paper RCON `tps` reply.
+/// "TPS from last 1m, 5m, 15m: 19.96, 19.97, 19.97" → 19.96
+fn parse_tps(reply: &str) -> Option<f32> {
+    reply.split(':').nth(1)?.split(',').next()?.trim().parse().ok()
 }
 
 /// Parse a vanilla log line: "[12:04:51] [Server thread/INFO]: Done"
