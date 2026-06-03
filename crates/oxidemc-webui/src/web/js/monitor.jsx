@@ -165,7 +165,7 @@ function MonitorView({ server, layout = 'grid' }) {
         <Gauge value={running ? live.ram : 0} label="RAM" sub="%" accentByLoad size={104} />
       </div>
       <div className="col" style={{ gap: 12, padding: '6px 18px 18px' }}>
-        <BarMeter label="Heap (-Xmx)" value={running ? live.ram : 0} max={100} valueLabel={`${(server.max_ram).replace('G','')}·${Math.round(live.ram/100*parseInt(server.max_ram))}G`} />
+        <BarMeter label="Heap (-Xmx)" value={running ? live.ram : 0} max={100} valueLabel={`${(server.max_ram || '2G').replace('G','')}·${Math.round(live.ram/100*parseInt(server.max_ram||'2'))}G`} />
         <BarMeter label="Players" value={server.players.length} max={server.max_players} valueLabel={`${server.players.length}/${server.max_players}`} tone="var(--amber)" />
       </div>
     </div>

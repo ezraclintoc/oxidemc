@@ -115,7 +115,7 @@ function makeServer(o) {
     motd: 'A Minecraft Server', gamemode: 'survival', difficulty: 'normal', pvp: true,
     whitelist: false, online_mode: true, spawn_protection: 16, render_distance: 10,
     simulation_distance: 10, jvm_flags: '', rcon_enabled: true, rcon_port: 25575,
-    rcon_password: 'hunter2', min_ram: '1G', ...o,
+    rcon_password: 'hunter2', min_ram: '1G', max_ram: '2G', ...o,
   };
 }
 

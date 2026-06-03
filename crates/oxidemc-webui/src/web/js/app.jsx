@@ -162,13 +162,15 @@ function ServerDetail({ server, tab, setTab, onAction, onBack, onChange, onSave,
 // ── global settings (Manage) ────────────────────────────────────────────────
 function GlobalSettings() {
   const [m, setM] = useStateA(null);
+  const [err, setErr] = useStateA(null);
   const [saving, setSaving] = useStateA(false);
   const [saved, setSaved] = useStateA(false);
 
   useEffectA(() => {
-    apiFetch('/api/manage').then(setM).catch(console.error);
+    apiFetch('/api/manage').then(setM).catch(e => setErr(e.message));
   }, []);
 
+  if (err) return <div className="content-pad" style={{ color: 'var(--red)', fontSize: 13 }}><Icon name="alert" size={14} /> Failed to load settings: {err}</div>;
   if (!m) return <div className="content-pad" style={{ color: 'var(--text-dim)', fontSize: 13 }}>Loading…</div>;
 
   const set = (k, v) => setM(s => ({ ...s, [k]: { ...s[k], default: v } }));
