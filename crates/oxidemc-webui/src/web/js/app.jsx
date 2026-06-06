@@ -48,7 +48,7 @@ function ServerCard({ server, onOpen, onAction }) {
 // ── servers home ────────────────────────────────────────────────────────────
 function ServersHome({ servers, onOpen, onAction, onNew }) {
   const [q, setQ] = useStateA('');
-  const list = servers.filter(s => s.name.includes(q.toLowerCase()) || s.type.includes(q.toLowerCase()));
+  const list = servers.filter(s => s.name.toLowerCase().includes(q.toLowerCase()) || s.type.toLowerCase().includes(q.toLowerCase()));
   const runCount = servers.filter(s => s.status === 'running').length;
   const players = servers.reduce((n, s) => n + s.players.length, 0);
   return (
@@ -108,12 +108,36 @@ function Toast({ msg, type = 'ok', onDone }) {
   );
 }
 
+function RestartPrompt({ onRestartNow, onLater }) {
+  return (
+    <>
+      <div onClick={onLater} style={{ position: 'fixed', inset: 0, background: '#0006', zIndex: 80 }} />
+      <div style={{ position: 'fixed', top: '50%', left: '50%', transform: 'translate(-50%,-50%)', zIndex: 81,
+        background: 'var(--panel-2)', border: '1px solid var(--border)', borderRadius: 10,
+        boxShadow: '0 24px 60px #000c', padding: '28px 32px', width: 400, maxWidth: '90vw' }}>
+        <div className="row" style={{ gap: 12, marginBottom: 14 }}>
+          <span style={{ color: 'var(--amber)' }}><Icon name="restart" size={20} /></span>
+          <span className="sans" style={{ fontSize: 17, fontWeight: 600 }}>Restart required</span>
+        </div>
+        <p style={{ fontSize: 13.5, color: 'var(--text-dim)', margin: '0 0 22px', lineHeight: 1.6 }}>
+          Your changes have been saved. For them to take effect the server must restart.
+        </p>
+        <div className="row" style={{ gap: 10, justifyContent: 'flex-end' }}>
+          <button className="btn ghost" onClick={onLater}>Restart Later</button>
+          <button className="btn primary" onClick={onRestartNow}><Icon name="restart" size={14} />Restart Now</button>
+        </div>
+      </div>
+    </>
+  );
+}
+
 function ServerDetail({ server, tab, setTab, onAction, onBack, onChange, onSave, monitorLayout, settingsTreatment }) {
   const running = server.status === 'running';
   const plat = PLATFORMS.find(p => p.id === server.type);
 
-  // Load full oxide.json when Configure tab opens so form shows real persisted values
   const [configState, setConfigState] = useStateA(null);
+  const [showRestartPrompt, setShowRestartPrompt] = useStateA(false);
+
   useEffectA(() => {
     if (tab !== 'configure') return;
     apiFetch(`/api/servers/${server.id}`)
@@ -125,6 +149,12 @@ function ServerDetail({ server, tab, setTab, onAction, onBack, onChange, onSave,
   const handleConfigChange = (k, v) => {
     setConfigState(prev => ({ ...(prev || server), [k]: v }));
     onChange(server.id, k, v);
+  };
+
+  const handleSave = () => {
+    onSave(server.id, configState)?.then(() => {
+      if (running) setShowRestartPrompt(true);
+    }).catch(() => {});
   };
   return (
     <div className="col" style={{ height: '100%', minHeight: 0 }}>
@@ -180,18 +210,24 @@ function ServerDetail({ server, tab, setTab, onAction, onBack, onChange, onSave,
                 <span className="kicker">Editing {server.name} . oxide.json</span>
                 <div className="grow" />
                 {!configState && <span style={{ fontSize: 11, color: 'var(--text-faint)' }}>loading...</span>}
-                <button className="btn sm primary" disabled={!configState} onClick={() => onSave(server.id, configState)}><Icon name="check" size={13} />Save</button>
+                <button className="btn sm primary" disabled={!configState} onClick={handleSave}><Icon name="check" size={13} />Save</button>
               </div>
               <SettingsForm values={configValues} onChange={handleConfigChange} treatment={settingsTreatment} />
             </div>
           )}
       </div>
+      {showRestartPrompt && (
+        <RestartPrompt
+          onRestartNow={() => { setShowRestartPrompt(false); onAction(server.id, 'restart'); }}
+          onLater={() => setShowRestartPrompt(false)}
+        />
+      )}
     </div>
   );
 }
 
 // ── global settings (Manage) ────────────────────────────────────────────────
-function GlobalSettings({ onToast }) {
+function GlobalSettings({ onToast, bgTheme, onTheme }) {
   const [m, setM] = useStateA(null);
   const [err, setErr] = useStateA(null);
   const [saving, setSaving] = useStateA(false);
@@ -212,8 +248,10 @@ function GlobalSettings({ onToast }) {
       .finally(() => setSaving(false));
   };
 
-  const Row = ({ label, note, children }) => (
-    <div style={{ display: 'grid', gridTemplateColumns: '230px 1fr', gap: 20, padding: '16px 18px', borderTop: '1px solid var(--border-soft)', alignItems: 'center' }}>
+  const backupsOn = m.backup_enabled ? m.backup_enabled.default : true;
+
+  const Row = ({ label, note, dim, children }) => (
+    <div style={{ display: 'grid', gridTemplateColumns: '230px 1fr', gap: 20, padding: '16px 18px', borderTop: '1px solid var(--border-soft)', alignItems: 'center', opacity: dim ? 0.4 : 1 }}>
       <div className="col" style={{ gap: 3 }}>
         <span style={{ fontSize: 13, color: 'var(--text)' }}>{label}</span>
         {note && <span style={{ fontSize: 11, color: 'var(--text-faint)', lineHeight: 1.4 }}>{note}</span>}
@@ -221,6 +259,12 @@ function GlobalSettings({ onToast }) {
       <div>{children}</div>
     </div>
   );
+
+  const BG_OPTIONS = [
+    { id: 'deep', label: 'Deep dark', note: 'Darkest, highest contrast' },
+    { id: 'warm', label: 'Warm dark', note: 'Slightly lighter warm tone' },
+    { id: 'dim',  label: 'Dim',       note: 'Softest, lowest contrast' },
+  ];
 
   return (
     <div className="content-pad fade-in" style={{ maxWidth: 820 }}>
@@ -234,18 +278,37 @@ function GlobalSettings({ onToast }) {
       </button>
       </div>
 
+      {/* WebUI appearance — stored in localStorage, not manage.json */}
+      <div className="panel" style={{ overflow: 'hidden', marginBottom: 16 }}>
+        <div className="panel-h"><span style={{ color: 'var(--accent-bright)' }}><Icon name="monitor" size={15} /></span><span className="t">Web interface</span></div>
+        <Row label="Background" note="Affects this web UI only. Saved in your browser.">
+          <div className="row" style={{ gap: 8 }}>
+            {BG_OPTIONS.map(o => (
+              <button key={o.id} onClick={() => onTheme(o.id)} title={o.note} style={{
+                padding: '6px 14px', borderRadius: 6, border: '1px solid ' + (bgTheme === o.id ? 'var(--accent)' : 'var(--border)'),
+                background: bgTheme === o.id ? 'var(--accent-faint)' : 'var(--inset)',
+                color: bgTheme === o.id ? 'var(--accent-bright)' : 'var(--text-dim)',
+                fontFamily: 'var(--mono)', fontSize: 12, cursor: 'pointer',
+                boxShadow: bgTheme === o.id ? '0 0 0 2px var(--accent-glow)' : 'none',
+              }}>{o.label}</button>
+            ))}
+          </div>
+        </Row>
+      </div>
+
       <div className="panel" style={{ overflow: 'hidden' }}>
         <div className="panel-h"><span style={{ color: 'var(--accent-bright)' }}><Icon name="folder" size={15} /></span><span className="t">Paths</span></div>
         <Row label="Servers directory" note="Parent folder for new servers."><input className="input" value={m.servers_directory.default} onChange={e => set('servers_directory', e.target.value)} /></Row>
         <Row label="Java path" note="Empty = use java found on $PATH."><input className="input" value={m.java_path.default} placeholder="auto-detect" onChange={e => set('java_path', e.target.value)} /></Row>
-        <Row label="Backup directory"><input className="input" value={m.backup_directory.default} onChange={e => set('backup_directory', e.target.value)} /></Row>
-        <Row label="Backup count" note="Rolling backups kept per server. 0 = unlimited.">
-          <input className="input" value={m.backup_count.default} onChange={e => set('backup_count', parseInt(e.target.value.replace(/\D/g,''),10)||0)} style={{ maxWidth: 120 }} /></Row>
+        <Row label="Enable backups"><Toggle on={backupsOn} onChange={v => set('backup_enabled', v)} /></Row>
+        <Row label="Backup directory" dim={!backupsOn}><input className="input" value={m.backup_directory.default} disabled={!backupsOn} onChange={e => set('backup_directory', e.target.value)} /></Row>
+        <Row label="Backup count" note="Rolling backups per server. 0 = unlimited." dim={!backupsOn}>
+          <input className="input" value={m.backup_count.default} disabled={!backupsOn} onChange={e => set('backup_count', parseInt(e.target.value.replace(/\D/g,''),10)||0)} style={{ maxWidth: 120 }} /></Row>
       </div>
 
       <div className="panel" style={{ overflow: 'hidden', marginTop: 16 }}>
         <div className="panel-h"><span style={{ color: 'var(--accent-bright)' }}><Icon name="settings" size={15} /></span><span className="t">Behavior</span></div>
-        <Row label="Theme" note="TUI color theme.">
+        <Row label="TUI theme" note="Color theme for the terminal interface.">
           <select className="select" value={m.theme.default} onChange={e => set('theme', e.target.value)} style={{ maxWidth: 200 }}>
             {['default', 'green', 'ocean', 'lava'].map(o => <option key={o}>{o}</option>)}
           </select></Row>
@@ -264,7 +327,9 @@ function App() {
   const [route, setRoute] = useStateA({ view: 'servers', id: null, tab: 'monitor' });
   const [hints, setHints] = useStateA([]);
   const [toast, setToast] = useStateA(null);
+  const [bgTheme, setBgTheme] = useStateA(() => localStorage.getItem('oxidemc-bg') || 'deep');
   const showToast = (msg, type = 'ok') => setToast({ msg, type });
+  const applyTheme = (bg) => { setBgTheme(bg); localStorage.setItem('oxidemc-bg', bg); };
 
   const current = servers.find(s => s.id === route.id);
 
@@ -299,11 +364,11 @@ function App() {
 
   const saveServer = (id, configSnapshot) => {
     const s = configSnapshot || servers.find(p => p.id === id);
-    if (!s) return;
+    if (!s) return Promise.resolve();
     const state = flatToServerState(s.name, s.type, s.version, s);
-    apiFetch(`/api/servers/${id}`, { method: 'PUT', body: JSON.stringify(state) })
+    return apiFetch(`/api/servers/${id}`, { method: 'PUT', body: JSON.stringify(state) })
       .then(() => showToast('Settings saved'))
-      .catch(err => showToast('Save failed: ' + err.message, 'err'));
+      .catch(err => { showToast('Save failed: ' + err.message, 'err'); throw err; });
   };
 
   // default footer hints per view
@@ -313,23 +378,41 @@ function App() {
     else if (route.view === 'settings') setHints([{ keys: ['Esc'], label: 'back' }, { keys: ['↵'], label: 'apply' }]);
   }, [route.view, route.tab]);
 
-  const go = (view, extra = {}) => setRoute(r => ({ ...r, view, ...extra }));
+  // ── client-side routing via page.js ────────────────────────────────────────
+  const go = (view, extra = {}) => {
+    const id = extra.id;
+    const tab = extra.tab;
+    if (view === 'servers') page('/');
+    else if (view === 'server') page(`/servers/${id}${tab === 'configure' ? '/configure' : ''}`);
+    else if (view === 'new') page('/new');
+    else if (view === 'settings') page('/settings');
+  };
+
+  useEffectA(() => {
+    page('/', () => setRoute({ view: 'servers', id: null, tab: 'monitor' }));
+    page('/servers/:name', ctx => setRoute({ view: 'server', id: ctx.params.name, tab: 'monitor' }));
+    page('/servers/:name/configure', ctx => setRoute({ view: 'server', id: ctx.params.name, tab: 'configure' }));
+    page('/new', () => setRoute({ view: 'new', id: null, tab: 'monitor' }));
+    page('/settings', () => setRoute({ view: 'settings', id: null, tab: 'monitor' }));
+    page.start({ dispatch: true });
+    return () => page.stop();
+  }, []);
 
   useEffectA(() => {
     const handler = (e) => {
       const tag = e.target.tagName;
       if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || e.target.isContentEditable) return;
       if (route.view === 'servers') {
-        if (e.key === 'n' || e.key === 'N') go('new');
+        if (e.key === 'n' || e.key === 'N') page('/new');
       } else if (route.view === 'server') {
-        if (e.key === 'Escape') go('servers', { id: null });
-        if (e.key === 'Tab') { e.preventDefault(); setRoute(r => ({ ...r, tab: r.tab === 'monitor' ? 'configure' : 'monitor' })); }
+        if (e.key === 'Escape') page('/');
+        if (e.key === 'Tab') { e.preventDefault(); page(route.tab === 'monitor' ? `/servers/${route.id}/configure` : `/servers/${route.id}`); }
         if ((e.key === 's' || e.key === 'S') && current) {
           if (route.tab === 'monitor') doAction(current.id, current.status === 'running' ? 'stop' : 'start');
           else saveServer(current.id);
         }
       } else if (route.view === 'settings' || route.view === 'new') {
-        if (e.key === 'Escape') go('servers', { id: null });
+        if (e.key === 'Escape') page('/');
       }
     };
     window.addEventListener('keydown', handler);
@@ -337,7 +420,7 @@ function App() {
   }, [route, current]);
 
   return (
-    <div className="app" data-bg="deep" data-border="boxed" style={{ ['--accent']: ACCENT_HEX }}>
+    <div className="app" data-bg={bgTheme} data-border="boxed" style={{ ['--accent']: ACCENT_HEX }}>
       {/* sidebar */}
       <aside className="sidebar">
         <div className="brand">
@@ -387,8 +470,9 @@ function App() {
         <div className="content">
           {route.view === 'servers' && <ServersHome servers={servers} onOpen={id => go('server', { id, tab: 'monitor' })} onAction={doAction} onNew={() => go('new')} />}
           {route.view === 'server' && current && (
-            <ServerDetail server={current} tab={route.tab} setTab={tab => setRoute(r => ({ ...r, tab }))}
-              onAction={doAction} onBack={() => go('servers', { id: null })} onChange={changeServer}
+            <ServerDetail server={current} tab={route.tab}
+              setTab={tab => page(tab === 'configure' ? `/servers/${current.id}/configure` : `/servers/${current.id}`)}
+              onAction={doAction} onBack={() => page('/')} onChange={changeServer}
               onSave={saveServer} monitorLayout="grid" settingsTreatment="grouped" />
           )}
           {route.view === 'new' && (
@@ -396,11 +480,11 @@ function App() {
               setFooterHints={setHints}
               onCancel={() => go('servers')}
               onDone={({ name }) => {
-                go('server', { id: name, tab: 'monitor' });
                 doAction(name, 'start');
+                page(`/servers/${name}`);
               }} />
           )}
-          {route.view === 'settings' && <GlobalSettings onToast={showToast} />}
+          {route.view === 'settings' && <GlobalSettings onToast={showToast} bgTheme={bgTheme} onTheme={applyTheme} />}
         </div>
         <Footer hints={hints} right={
           <div className="status-mini"><span className="dot run" />OxideMC daemon . localhost:7878</div>

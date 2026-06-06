@@ -20,21 +20,30 @@ pub struct ConsoleLine {
 /// Live sample for the Monitor gauges + TPS chart.
 #[derive(Debug, Clone, serde::Serialize)]
 pub struct Metrics {
-    pub cpu: f32,           // % of one core (or normalized)
-    pub ram: f32,           // % of -Xmx
+    pub cpu: f32,
+    pub ram: f32,
     pub ram_mb: u64,
-    pub tps: f32,           // parsed from `tps`/forge, else estimated
+    pub tps: f32,
+    /// True once the first successful RCON TPS reply has arrived this session.
+    pub tps_available: bool,
     pub players: Vec<String>,
+}
+
+/// Progress events broadcast to the install WebSocket.
+#[derive(Debug, Clone, serde::Serialize)]
+#[serde(tag = "type", rename_all = "lowercase")]
+pub enum InstallMsg {
+    Progress { downloaded: u64, total: u64 },
+    Done,
+    Error { msg: String },
 }
 
 /// Everything we track for a server that is currently running.
 pub struct RunningServer {
     pub child: Child,
-    /// fan-out of console lines to all connected WebSockets
     pub console: broadcast::Sender<ConsoleLine>,
-    /// latest metrics sample (updated by the poller task)
     pub metrics: Arc<RwLock<Metrics>>,
-    /// player list maintained by parsing console join/leave events
+    #[allow(dead_code)]
     pub players: Arc<Mutex<Vec<String>>>,
     pub start_time: std::time::Instant,
     #[allow(dead_code)]
@@ -43,21 +52,21 @@ pub struct RunningServer {
 
 #[derive(Clone)]
 pub struct AppState {
-    /// parent dir that holds one sub-folder (with oxide.json) per server
     pub servers_dir: PathBuf,
     pub java_path: String,
-    /// name -> running handle
     pub running: Arc<Mutex<HashMap<String, RunningServer>>>,
+    /// job-id → broadcast sender for install progress WebSocket
+    pub install_jobs: Arc<Mutex<HashMap<String, broadcast::Sender<InstallMsg>>>>,
 }
 
 impl AppState {
-    /// Build state from the global manage.json (servers_directory, java_path).
     pub fn from_manage() -> ApiResult<Self> {
         let manage = oxidemc_core::config::load_manage()?;
         Ok(Self {
             servers_dir: expand(&manage.servers_directory.default),
             java_path: manage.java_path.default,
             running: Arc::new(Mutex::new(HashMap::new())),
+            install_jobs: Arc::new(Mutex::new(HashMap::new())),
         })
     }
 
@@ -65,7 +74,6 @@ impl AppState {
         self.servers_dir.join(name)
     }
 
-    /// Load a server's oxide.json, or 404.
     pub fn load_state(&self, name: &str) -> ApiResult<ServerState> {
         let dir = self.server_dir(name);
         if !dir.join("oxide.json").exists() {
@@ -74,7 +82,6 @@ impl AppState {
         Ok(oxidemc_core::config::load_server_state(&dir)?)
     }
 
-    /// Enumerate every server folder that contains an oxide.json.
     pub fn list_states(&self) -> ApiResult<Vec<ServerState>> {
         let mut out = Vec::new();
         if !self.servers_dir.exists() {
@@ -95,12 +102,6 @@ impl AppState {
         self.running.lock().await.contains_key(name)
     }
 
-    /// Launch a server with piped stdout so we can stream the console.
-    ///
-    /// NOTE: `oxidemc_core::server::launch` inherits stdio, which is right for
-    /// the TUI but means we can't capture output. Here we mirror its command
-    /// construction but pipe stdout/stderr. Consider adding a `launch_piped`
-    /// (or a `Stdio` parameter) to core so this logic lives in one place.
     pub async fn start(&self, name: &str) -> ApiResult<()> {
         if self.is_running(name).await {
             return Err(ApiError::AlreadyRunning);
@@ -130,11 +131,10 @@ impl AppState {
 
         let (console_tx, _rx) = broadcast::channel::<ConsoleLine>(512);
         let metrics = Arc::new(RwLock::new(Metrics {
-            cpu: 0.0, ram: 0.0, ram_mb: 0, tps: 0.0, players: vec![],
+            cpu: 0.0, ram: 0.0, ram_mb: 0, tps: 0.0, tps_available: false, players: vec![],
         }));
         let players: Arc<Mutex<Vec<String>>> = Arc::new(Mutex::new(Vec::new()));
 
-        // pump stdout -> broadcast + track join/leave for player list
         if let Some(stdout) = child.stdout.take() {
             let tx = console_tx.clone();
             let pl = players.clone();
@@ -145,7 +145,10 @@ impl AppState {
                     if parsed.msg.ends_with(" joined the game") {
                         if let Some(n) = parsed.msg.strip_suffix(" joined the game") {
                             let n = n.trim().to_string();
-                            if !n.is_empty() { pl.lock().await.push(n); }
+                            if !n.is_empty() {
+                                let mut pl = pl.lock().await;
+                                if !pl.contains(&n) { pl.push(n); }
+                            }
                         }
                     } else if parsed.msg.ends_with(" left the game")
                         || parsed.msg.contains(" lost connection:")
@@ -163,14 +166,16 @@ impl AppState {
             });
         }
 
-        // metrics poller (sysinfo + optional RCON TPS) -> RwLock
-        let xmx = state.performance.max_ram.clone();
-        let rcon_cfg = if state.network.rcon.enabled {
-            Some((state.network.rcon.port, state.network.rcon.password.clone()))
-        } else {
+        // Skip TPS probing if this server was previously confirmed as incapable.
+        let tps_cmd = if state.tps_capable == Some(false) {
             None
+        } else {
+            state.network.rcon.enabled
+                .then(|| tps_rcon_cfg(&state.server_type))
+                .flatten()
         };
-        spawn_metrics_poller(pid, metrics.clone(), players.clone(), xmx, rcon_cfg);
+        let xmx = state.performance.max_ram.clone();
+        spawn_metrics_poller(pid, metrics.clone(), players.clone(), xmx, tps_cmd, dir.clone());
 
         self.running.lock().await.insert(
             name.to_string(),
@@ -183,9 +188,13 @@ impl AppState {
     }
 
     /// Graceful stop via RCON `stop`, falling back to SIGKILL.
+    /// The running Mutex is released immediately after removing the entry so
+    /// concurrent start/list/stop calls are not blocked during I/O.
     pub async fn stop(&self, name: &str) -> ApiResult<()> {
-        let mut guard = self.running.lock().await;
-        let mut running = guard.remove(name).ok_or(ApiError::NotRunning)?;
+        let mut running = {
+            let mut guard = self.running.lock().await;
+            guard.remove(name).ok_or(ApiError::NotRunning)?
+        }; // lock dropped here
 
         let state = self.load_state(name)?;
         if state.network.rcon.enabled {
@@ -193,20 +202,24 @@ impl AppState {
                 let _ = oxidemc_core::server::stop(&mut rcon).await;
             }
         }
-        // give it a moment, then ensure it's gone
-        let _ = tokio::time::timeout(std::time::Duration::from_secs(10), running.child.wait()).await;
+        let _ = tokio::time::timeout(
+            std::time::Duration::from_secs(10),
+            running.child.wait(),
+        )
+        .await;
         let _ = running.child.kill().await;
         Ok(())
     }
 
     pub async fn restart(&self, name: &str) -> ApiResult<()> {
-        if self.is_running(name).await {
-            self.stop(name).await?;
+        // A concurrent stop might beat us — treat NotRunning as non-fatal here.
+        match self.stop(name).await {
+            Ok(()) | Err(ApiError::NotRunning) => {}
+            Err(e) => return Err(e),
         }
         self.start(name).await
     }
 
-    /// Open an authenticated RCON connection from a server's oxide.json.
     pub async fn connect_rcon(&self, state: &ServerState) -> ApiResult<RconClient> {
         if !state.network.rcon.enabled {
             return Err(ApiError::RconDisabled);
@@ -220,19 +233,54 @@ impl AppState {
     }
 }
 
-/// Spawn a 1.5s sysinfo poller. Every ~10s also polls RCON for TPS if enabled.
+fn tps_rcon_cfg(server_type: &str) -> Option<&'static str> {
+    match server_type {
+        "paper" | "purpur" | "spigot" => Some("tps"),
+        "forge" => Some("forge tps"),
+        "neoforge" => Some("neoforge tps"),
+        _ => None,
+    }
+}
+
+/// Spawn the 1.5 s sysinfo poller.
+///
+/// Every ~10.5 s it also polls RCON for TPS — but re-reads credentials from
+/// oxide.json each time so a Configure save (new password/port) takes effect
+/// without a restart.
+///
+/// ENV vars:
+///   OXIDEMC_TPS_TIMEOUT  — seconds before giving up on TPS probe (default 20)
+///   OXIDEMC_TPS_PERSIST  — "false"/"0" to skip writing tps_capable=false to
+///                          oxide.json when the probe times out (default true)
 fn spawn_metrics_poller(
     pid: u32,
     metrics: Arc<RwLock<Metrics>>,
     players: Arc<Mutex<Vec<String>>>,
     max_ram: String,
-    rcon_cfg: Option<(u16, String)>, // (port, password) if RCON enabled
+    tps_cmd: Option<&'static str>,
+    server_dir: PathBuf,
 ) {
     use sysinfo::{Pid, ProcessRefreshKind, ProcessesToUpdate, System};
+
+    let tps_timeout = std::env::var("OXIDEMC_TPS_TIMEOUT")
+        .ok()
+        .and_then(|v| v.parse::<u64>().ok())
+        .unwrap_or(20);
+    let tps_persist = std::env::var("OXIDEMC_TPS_PERSIST")
+        .map(|v| v != "0" && !v.eq_ignore_ascii_case("false"))
+        .unwrap_or(true);
+
     tokio::spawn(async move {
         let mut sys = System::new();
         let xmx_mb = parse_ram_mb(&max_ram);
         let mut tick: u32 = 0;
+        let probe_start = std::time::Instant::now();
+        // If tps_cmd is None we have nothing to probe; mark as already given up.
+        let mut tps_giving_up = tps_cmd.is_none();
+        // Persistent RCON connection — reconnect only on failure or credential change.
+        let mut rcon_client: Option<RconClient> = None;
+        let mut rcon_creds: Option<(u16, String)> = None;
+
         loop {
             sys.refresh_processes_specifics(
                 ProcessesToUpdate::Some(&[Pid::from_u32(pid)]),
@@ -248,19 +296,72 @@ fn spawn_metrics_poller(
                 m.ram = if xmx_mb > 0 { (ram_mb as f32 / xmx_mb as f32) * 100.0 } else { 0.0 };
                 m.players = current_players;
             } else {
-                break; // process gone
+                break;
             }
 
-            // poll RCON for TPS every ~10s (every 7 ticks of 1.5s ≈ 10.5s)
             tick += 1;
-            if tick % 7 == 0 {
-                if let Some((port, ref password)) = rcon_cfg {
-                    if let Ok(mut rcon) = oxidemc_core::rcon::RconClient::connect(
-                        "127.0.0.1", port, password,
-                    ).await {
-                        if let Ok(reply) = rcon.send_command("tps").await {
-                            if let Some(tps) = parse_tps(&reply) {
-                                metrics.write().await.tps = tps;
+
+            // TPS timeout: give up if no data arrived within the probe window.
+            if !tps_giving_up {
+                let has_data = metrics.read().await.tps_available;
+                if !has_data && probe_start.elapsed().as_secs() >= tps_timeout {
+                    tps_giving_up = true;
+                    tracing::debug!(
+                        "TPS probe timeout ({}s) for {:?}; giving up",
+                        tps_timeout, server_dir
+                    );
+                    if tps_persist {
+                        if let Ok(mut st) = oxidemc_core::config::load_server_state(&server_dir) {
+                            st.tps_capable = Some(false);
+                            let _ = oxidemc_core::config::save_server_state(&st, &server_dir);
+                        }
+                    }
+                }
+            }
+
+            // Poll RCON for TPS every ~10.5 s (every 7 × 1.5 s ticks).
+            // Persistent connection: reconnect only on failure or credential change.
+            if !tps_giving_up && tick % 7 == 0 {
+                if let Some(cmd) = tps_cmd {
+                    match oxidemc_core::config::load_server_state(&server_dir) {
+                        Err(e) => tracing::debug!("TPS: could not reload state: {}", e),
+                        Ok(st) if !st.network.rcon.enabled => {
+                            rcon_client = None;
+                            rcon_creds = None;
+                        }
+                        Ok(st) => {
+                            let creds = (st.network.rcon.port, st.network.rcon.password.clone());
+                            if rcon_creds.as_ref() != Some(&creds) {
+                                rcon_client = None;
+                                rcon_creds = None;
+                            }
+                            if rcon_client.is_none() {
+                                match RconClient::connect("127.0.0.1", creds.0, &creds.1).await {
+                                    Err(e) => tracing::debug!("TPS RCON connect failed: {}", e),
+                                    Ok(client) => {
+                                        rcon_client = Some(client);
+                                        rcon_creds = Some(creds);
+                                    }
+                                }
+                            }
+                            if let Some(ref mut rcon) = rcon_client {
+                                match rcon.send_command(cmd).await {
+                                    Err(e) => {
+                                        tracing::debug!("TPS RCON cmd '{}' failed: {}", cmd, e);
+                                        rcon_client = None;
+                                        rcon_creds = None;
+                                    }
+                                    Ok(reply) => {
+                                        let clean = strip_mc_colors(&reply);
+                                        if let Some(tps) = parse_tps(cmd, &clean) {
+                                            let mut m = metrics.write().await;
+                                            m.tps = tps;
+                                            m.tps_available = true;
+                                        } else {
+                                            tracing::debug!("TPS parse failed on: {:?}", clean);
+                                        }
+                                    }
+                                }
                             }
                         }
                     }
@@ -272,13 +373,39 @@ fn spawn_metrics_poller(
     });
 }
 
-/// Parse TPS from vanilla/Paper RCON `tps` reply.
-/// "TPS from last 1m, 5m, 15m: 19.96, 19.97, 19.97" → 19.96
-fn parse_tps(reply: &str) -> Option<f32> {
-    reply.split(':').nth(1)?.split(',').next()?.trim().parse().ok()
+fn strip_mc_colors(s: &str) -> String {
+    let mut out = String::with_capacity(s.len());
+    let mut chars = s.chars().peekable();
+    while let Some(c) = chars.next() {
+        if c == '\u{00A7}' { chars.next(); } else { out.push(c); }
+    }
+    out
 }
 
-/// Parse a vanilla log line: "[12:04:51] [Server thread/INFO]: Done"
+/// Parse TPS from an RCON reply.
+///
+/// Paper/Purpur/Spigot (`tps`):
+///   "TPS from last 1m, 5m, 15m: 19.96, 19.97, 19.97"  → 19.96
+///
+/// Forge/NeoForge (`forge tps` / `neoforge tps`):
+///   "Overall: Mean tick time: 44.71 ms. Mean TPS: 20.000"  → 20.0
+fn parse_tps(cmd: &str, reply: &str) -> Option<f32> {
+    if cmd.contains("forge") {
+        for line in reply.lines() {
+            if line.contains("Overall") && line.contains("Mean TPS:") {
+                let after = line.split("Mean TPS:").nth(1)?;
+                return after.trim().parse().ok();
+            }
+        }
+        None
+    } else {
+        let after_colon = reply.split(':').nth(1)?;
+        let first = after_colon.split(',').next()?.trim();
+        let clean: String = first.chars().filter(|c| c.is_ascii_digit() || *c == '.').collect();
+        clean.parse().ok()
+    }
+}
+
 fn parse_log_line(line: &str) -> ConsoleLine {
     let now = now_hms();
     let level = if line.contains("/ERROR") || line.contains("ERROR]") {

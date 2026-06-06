@@ -5,12 +5,12 @@ WebSocket, and serves the React single-page UI. It reuses `oxidemc-core` directl
 no logic is duplicated.
 
 ```
-┌──────────────┐    REST /api/*      ┌──────────────┐     ┌──────────────┐
-│  React SPA   │ ──────────────────▶ │ oxidemc-webui│ ──▶ │ oxidemc-core │
-│ (web/dist)   │ ◀───── WS /ws/* ─── │   (axum)     │     │  config/rcon │
-└──────────────┘   console+metrics   └──────────────┘     │  downloader  │
-                                                           │  server      │
-                                                           └──────────────┘
++----------------+    REST /api/*      +----------------+     +--------------+
+|   React SPA    | ------------------> | oxidemc-webui  | --> | oxidemc-core |
+|  (src/web/)    | <--- WS /ws/*  ---- |    (axum)      |     |  config/rcon |
++----------------+  console+metrics    +----------------+     |  downloader  |
+                                                               |  server      |
+                                                               +--------------+
 ```
 
 ## Layout
@@ -18,17 +18,32 @@ no logic is duplicated.
 ```
 oxidemc-webui/
 ├── Cargo.toml
-├── API.md               # endpoint ↔ screen map (read this first)
-├── src/
-│   ├── main.rs          # router, static file serving, startup
-│   ├── state.rs         # AppState: process registry, launch/stop, metrics poller
-│   ├── error.rs         # ApiError → HTTP status + JSON body
-│   ├── ws.rs            # Monitor socket: console + metrics + RCON command input
-│   └── routes/
-│       ├── servers.rs   # list / get / update / start|stop|restart
-│       ├── install.rs   # platforms / versions / install
-│       └── manage.rs    # global settings get/put
-└── web/                 # the React app (build output served from web/dist)
+├── API.md               # endpoint <-> screen map (read this first)
+├── README.md            # this file
+└── src/
+    ├── main.rs          # router, static file serving, startup
+    ├── state.rs         # AppState: process registry, piped launch/stop,
+    │                    #   console stdout pump + player join/leave tracking,
+    │                    #   sysinfo metrics poller (1.5s),
+    │                    #   platform-aware RCON TPS polling (~10s)
+    ├── error.rs         # ApiError -> HTTP status + JSON body
+    ├── ws.rs            # Monitor WebSocket: console + metrics + RCON command input
+    └── routes/
+        ├── servers.rs   # list / get / update / start | stop | restart
+        ├── install.rs   # platforms / versions / install
+        └── manage.rs    # global settings get / put
+    └── web/             # React SPA (no build step required)
+        ├── index.html   # entry; all asset refs absolute (/)
+        ├── styles.css
+        ├── assets/      # platform logo PNGs
+        └── js/
+            ├── page.js          # page.js router (local copy)
+            ├── data.jsx         # icons, API helpers, data mapping
+            ├── components.jsx   # shared UI primitives
+            ├── settings.jsx     # settings form (Configure + wizard)
+            ├── monitor.jsx      # Monitor tab: console, gauges, TPS, players
+            ├── wizard.jsx       # install wizard (5 steps)
+            └── app.jsx          # app shell, routing, toasts, dialogs
 ```
 
 ## Run
@@ -36,40 +51,60 @@ oxidemc-webui/
 ```bash
 # from the workspace root
 cargo run -p oxidemc-webui
-# → OxideMC web UI on http://127.0.0.1:7878
+# -> OxideMC web UI on http://127.0.0.1:7878
 ```
 
-Put the built frontend at `oxidemc-webui/web/dist` (Vite/`index.html` + assets).
-During UI development, run the SPA dev server separately and let it proxy `/api`
-and `/ws` to `:7878` (CORS is permissive in dev).
+The server must be started from the **workspace root** so that:
+- `assets/manage.json` resolves correctly for startup config
+- `crates/oxidemc-webui/src/web/` resolves for static file serving
 
-## Integration notes / TODO
+For debug output including RCON TPS diagnostics:
 
-These are the deliberate seams left for you to finish:
+```bash
+RUST_LOG=oxidemc_webui=debug cargo run -p oxidemc-webui
+```
 
-1. **Piped stdout for the console.** `core::server::launch` inherits stdio (correct
-   for the TUI). `AppState::start` re-implements the launch with piped stdout so the
-   console can stream. Consider adding `server::launch_with_stdio(...)` to core so the
-   command construction lives in one place.
+## How the console works
 
-2. **Install progress WebSocket.** `routes::install` spawns `download_jar` with an
-   `mpsc<DownloadProgress>` but currently drains it. Add a jobs registry
-   (`Arc<Mutex<HashMap<String, broadcast::Sender<DownloadProgress>>>>` on `AppState`)
-   and a `GET /ws/install/:job` handler that forwards frames to the wizard's progress bar.
+When a server starts (`AppState::start`), the JVM is spawned with `stdout: Stdio::piped()`.
+A background task reads stdout line by line, parses each into a `ConsoleLine` (timestamp,
+level, source, message), and broadcasts it over a `tokio::sync::broadcast::Sender`.
+Player join/leave events are also detected from these lines to maintain the live player list.
 
-3. **TPS source.** `metrics.tps` is a placeholder. Vanilla has no TPS readout; parse it
-   from Paper/Purpur `tps` RCON output, or estimate from tick timing in the log stream.
+When a browser connects to `GET /ws/servers/:name`, the WebSocket handler subscribes to that
+broadcast channel and forwards every new line as a `{type:"console"}` frame. Metrics
+(`{type:"metrics"}`) are pushed every 1.5s from the sysinfo poller, including TPS when RCON
+is available and the platform supports it.
 
-4. **Player list polling.** Wire the metrics poller to periodically run RCON `list`
-   and parse names into `metrics.players` (kept separate from the 1.5s sysinfo loop so
-   a slow RCON call can't stall CPU/RAM sampling).
+## TPS polling
 
-5. **Validation.** Mirror the field rules (clamped ranges, RAM `G/M` regex,
-   RCON-password-required) in `servers::update` — the UI shows inline errors, but the
-   API must enforce them too.
+TPS is polled via RCON every ~10 seconds. The command used depends on the server platform:
 
-6. **AppState cache.** `servers_directory` / `java_path` are read once at startup.
-   After `PUT /api/manage`, rebuild `AppState` or hot-reload those fields.
+| Platform | Command | Notes |
+| --- | --- | --- |
+| Paper / Purpur / Spigot | `tps` | Returns 1m/5m/15m values |
+| Forge | `forge tps` | Returns per-dimension + Overall |
+| NeoForge | `neoforge tps` | Returns per-dimension + Overall |
+| Vanilla / Fabric | — | No built-in TPS command; panel is hidden |
 
-7. **Auth / binding.** Binds to `127.0.0.1` and CORS is permissive — fine for local
-   single-user. Add a token + tighten CORS before exposing on a network.
+If RCON is disabled, or the server type has no TPS command, the TPS chart and stat are
+hidden rather than showing a misleading `--` value.
+
+## API
+
+See [`API.md`](API.md) for the full REST + WebSocket endpoint reference.
+
+## Known limitations / future work
+
+1. **Install progress WebSocket** — `POST /api/install` spawns the download and currently
+   polls until the server appears rather than streaming `DownloadProgress` frames over
+   `/ws/install/:job`. A jobs registry keyed by server name is the missing piece.
+
+2. **AppState hot-reload** — `servers_directory` and `java_path` are read once at startup.
+   Changes via `PUT /api/manage` take effect on the next run.
+
+3. **Server-side field validation** — the Configure tab enforces rules client-side (RAM
+   format, port range, RCON password required). `servers::update` should mirror these.
+
+4. **Auth** — binds to `127.0.0.1` and CORS is permissive. Add a token and tighten CORS
+   before exposing on a network.

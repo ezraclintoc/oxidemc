@@ -108,7 +108,13 @@ fn non_empty(s: String) -> Option<String> {
 }
 
 fn non_empty_path(s: String) -> Option<PathBuf> {
-    if s.is_empty() { None } else { Some(PathBuf::from(s)) }
+    if s.is_empty() {
+        None
+    } else if let Some(rest) = s.strip_prefix("~/") {
+        dirs::home_dir().map(|h| h.join(rest))
+    } else {
+        Some(PathBuf::from(s))
+    }
 }
 
 #[tokio::main]

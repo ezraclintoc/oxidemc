@@ -230,7 +230,9 @@ function serverStateToFlat(state, extra = {}) {
   });
 }
 
-// Map ServerSummary (list endpoint) → flat UI server object
+// Map ServerSummary (list endpoint) → flat UI server object.
+// Pass preserved live metrics (players, cpu, ram, tps, uptimeH) via `s` to keep
+// them across the 5-second API poll cycle.
 function summaryToServer(s) {
   return makeServer({
     id: s.name,
@@ -241,7 +243,11 @@ function summaryToServer(s) {
     port: s.port,
     max_players: s.max_players,
     motd: s.motd,
-    players: [], cpu: 0, ram: 0, tps: 0, uptimeH: 0,
+    players: s.players ?? [],
+    cpu: s.cpu ?? 0,
+    ram: s.ram ?? 0,
+    tps: s.tps ?? 0,
+    uptimeH: s.uptimeH ?? 0,
   });
 }
 

@@ -6,20 +6,40 @@ const { useState: useStateM, useEffect: useEffectM, useRef: useRefM } = React;
 
 const LVL_COLOR = { INFO: 'var(--text-mid)', WARN: 'var(--amber)', ERROR: 'var(--red)', CMD: 'var(--accent-bright)' };
 
+// Module-level log cache -- survives component unmounts so navigating
+// away and back to a server restores the previous console output.
+const _logCache = {};
+
 function useLiveServer(server) {
   const running = server.status === 'running';
   const [cpu, setCpu] = useStateM(0);
   const [ram, setRam] = useStateM(0);
-  const [tps, setTps] = useStateM(null); // null = no data yet
+  const [tps, setTps] = useStateM(null);
+  // tpsAvailable becomes true only when the backend confirms TPS data arrived.
+  // It stays false (hiding the TPS panel) until the server reports it, and is
+  // reset to false when the server stops.
+  const [tpsAvailable, setTpsAvailable] = useStateM(false);
   const [players, setPlayers] = useStateM([]);
   const [uptimeSecs, setUptimeSecs] = useStateM(0);
   const [tpsHist, setTpsHist] = useStateM(() => Array(48).fill(0));
   const [loadHist, setLoadHist] = useStateM(() => Array(48).fill(0));
-  const [log, setLog] = useStateM([]);
+  const [log, setLog] = useStateM(() => _logCache[server.id] || []);
   const wsRef = useRefM(null);
 
+  const appendLog = (line) => {
+    setLog(prev => {
+      const next = [...prev.slice(-300), line];
+      _logCache[server.id] = next;
+      return next;
+    });
+  };
+
   useEffectM(() => {
-    if (!running) { setCpu(0); setRam(0); setTps(null); setPlayers([]); setUptimeSecs(0); return; }
+    if (!running) {
+      setCpu(0); setRam(0); setTps(null); setTpsAvailable(false);
+      setPlayers([]); setUptimeSecs(0);
+      return;
+    }
 
     const ws = new WebSocket(wsUrl(`/ws/servers/${server.id}`));
     wsRef.current = ws;
@@ -27,22 +47,30 @@ function useLiveServer(server) {
     ws.onmessage = (e) => {
       const msg = JSON.parse(e.data);
       if (msg.type === 'console') {
-        setLog(l => [...l.slice(-200), { t: msg.t, lvl: msg.level, src: msg.source, msg: msg.msg }]);
+        appendLog({ t: msg.t, lvl: msg.level, src: msg.source, msg: msg.msg });
       } else if (msg.type === 'metrics') {
+        const avail = !!msg.tps_available;
         setCpu(msg.cpu);
         setRam(msg.ram);
-        setTps(msg.tps > 0 ? msg.tps : null);
+        setTpsAvailable(avail);
+        // Only show a TPS value once the backend confirms it has real data.
+        // 0 is a valid (if alarming) reading when tps_available is true.
+        setTps(avail ? (msg.tps ?? 0) : null);
         setPlayers(msg.players || []);
         setUptimeSecs(msg.uptime_secs || 0);
-        setTpsHist(h => [...h.slice(1), msg.tps ?? 0]);
+        setTpsHist(h => [...h.slice(1), avail ? (msg.tps ?? 0) : 0]);
         setLoadHist(h => [...h.slice(1), msg.cpu]);
+      } else if (msg.type === 'status' && msg.status === 'stopped') {
+        // Server stopped while we were watching — clear live state.
+        setCpu(0); setRam(0); setTps(null); setTpsAvailable(false);
+        setPlayers([]); setUptimeSecs(0);
       }
     };
 
     ws.onerror = () => ws.close();
 
     return () => { ws.close(); wsRef.current = null; };
-  }, [running, server.id]);
+  }, [server.id]); // reconnect only when the server identity changes
 
   const sendCommand = (cmd) => {
     if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
@@ -50,7 +78,7 @@ function useLiveServer(server) {
     }
   };
 
-  return { cpu, ram, tps, players, uptimeSecs, tpsHist, loadHist, log, sendCommand, running };
+  return { cpu, ram, tps, tpsAvailable, players, uptimeSecs, tpsHist, loadHist, log, sendCommand, running };
 }
 
 // ── console panel ───────────────────────────────────────────────────────────
@@ -127,38 +155,45 @@ function Players({ players = [], maxPlayers }) {
 // ── monitor view ────────────────────────────────────────────────────────────
 function fmtUptime(secs) {
   if (!secs) return '--';
-  const d = Math.floor(secs / 86400), h = Math.floor((secs % 86400) / 3600), m = Math.floor((secs % 3600) / 60);
+  if (secs < 60) return `${secs}s`;
+  const d = Math.floor(secs / 86400), h = Math.floor((secs % 86400) / 3600), m = Math.floor((secs % 3600) / 60), s = secs % 60;
   if (d > 0) return `${d}d ${h}h`;
   if (h > 0) return `${h}h ${m}m`;
-  return `${m}m`;
+  return `${m}m ${s}s`;
 }
 
 function MonitorView({ server, layout = 'grid' }) {
   const live = useLiveServer(server);
   const running = server.status === 'running';
   const rconEnabled = server.rcon_enabled !== false;
-  const tpsLabel = live.tps != null ? live.tps.toFixed(1) : '--';
   const playerCount = live.players.length;
   const maxRam = server.max_ram || '2G';
+
+  // Show TPS panel only once the backend confirms TPS data has arrived.
+  // The backend handles the probe timeout (OXIDEMC_TPS_TIMEOUT env var, default 20s)
+  // and persists incapability to oxide.json (OXIDEMC_TPS_PERSIST env var).
+  const showTps = live.tpsAvailable;
 
   const rconWarning = running && !rconEnabled && (
     <div className="row" style={{ gap: 10, padding: '10px 14px', borderRadius: 7, background: 'color-mix(in oklch, var(--amber) 10%, transparent)',
       border: '1px solid color-mix(in oklch, var(--amber) 35%, transparent)', fontSize: 12.5, color: 'var(--amber)' }}>
       <Icon name="alert" size={14} />
-      <span><strong>RCON is disabled</strong> -- TPS and command input are unavailable.
+      <span><strong>RCON is disabled</strong> -- command input unavailable.
         Enable RCON in the <strong>Configure</strong> tab to unlock live management.</span>
     </div>
   );
 
+  const statItems = [
+    ['power', 'Status', STATUS_LABEL[server.status]],
+    ['clock', 'Uptime', running ? fmtUptime(live.uptimeSecs) : '--'],
+    ['chip', 'Version', `${server.type} ${server.version}`],
+    ['globe', 'Port', server.port],
+  ];
+  if (running && showTps) statItems.push(['monitor', 'TPS', live.tps != null ? live.tps.toFixed(1) : '--']);
+
   const statStrip = (
     <div className="panel" style={{ display: 'flex', gap: 0, flexWrap: 'wrap' }}>
-      {[
-        ['power', 'Status', STATUS_LABEL[server.status]],
-        ['clock', 'Uptime', running ? fmtUptime(live.uptimeSecs) : '--'],
-        ['chip', 'Version', `${server.type} ${server.version}`],
-        ['globe', 'Port', server.port],
-        ['monitor', 'TPS', running ? tpsLabel : '--'],
-      ].map(([ic, lb, v], i) => (
+      {statItems.map(([ic, lb, v], i) => (
         <div key={lb} style={{ flex: '1 1 130px', padding: '14px 18px', borderLeft: i ? '1px solid var(--border-soft)' : 0 }}>
           <Stat icon={ic} label={lb} value={v} accent={lb === 'TPS' || lb === 'Port'} />
         </div>
@@ -166,21 +201,22 @@ function MonitorView({ server, layout = 'grid' }) {
     </div>
   );
 
-  const tpsPanel = (
+  const tpsPanel = showTps && (
     <div className="panel" style={{ overflow: 'hidden' }}>
       <div className="panel-h">
         <span style={{ color: 'var(--accent-bright)' }}><Icon name="monitor" size={15} /></span>
         <span className="t">Ticks / second</span>
         <span className="row" style={{ marginLeft: 'auto', gap: 10 }}>
-          <span className="val mono-num" style={{ fontSize: 17, fontWeight: 600, color: running && !rconEnabled ? 'var(--text-faint)' : undefined }}>{running ? tpsLabel : '--'}</span>
+          <span className="val mono-num" style={{ fontSize: 17, fontWeight: 600, color: live.tps == null ? 'var(--text-faint)' : undefined }}>
+            {live.tps != null ? live.tps.toFixed(1) : '...'}
+          </span>
           {live.tps != null && <span style={{ fontSize: 11, color: 'var(--text-faint)' }}>/ 20.0</span>}
-          {running && !rconEnabled && <span className="row" style={{ gap: 5, fontSize: 10, color: 'var(--amber)', opacity: 0.8 }}><Icon name="alert" size={11} />needs RCON</span>}
         </span>
       </div>
       <div style={{ padding: '14px 8px 6px' }}>
-        <AreaChart data={live.tpsHist} min={10} max={20} height={120} target={20} tone={running && !rconEnabled ? 'var(--border)' : 'var(--accent)'} />
+        <AreaChart data={live.tpsHist} min={10} max={20} height={120} target={20} tone="var(--accent)" />
         <div className="row" style={{ justifyContent: 'space-between', padding: '4px 8px 0', fontSize: 10, color: 'var(--text-faint)' }}>
-          <span>−60s</span><span className="mono">target 20</span><span>now</span>
+          <span>-60s</span><span className="mono">target 20</span><span>now</span>
         </div>
       </div>
     </div>
@@ -223,6 +259,25 @@ function MonitorView({ server, layout = 'grid' }) {
   }
 
   // grid: balanced card dashboard
+  // When TPS is hidden, console moves up into the TPS slot
+  if (!tpsPanel) {
+    return (
+      <div className="col fade-in" style={{ gap: 18 }}>
+        {rconWarning}
+        {statStrip}
+        <div style={{ display: 'grid', gridTemplateColumns: '1.4fr 1fr', gap: 18, alignItems: 'start' }}>
+          <div style={{ height: 420 }}>
+            <Console log={live.log} onSend={live.sendCommand} running={running} rconEnabled={rconEnabled} flush />
+          </div>
+          <div className="col" style={{ gap: 18 }}>
+            {gaugesPanel}
+            <Players players={live.players} maxPlayers={server.max_players} />
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="col fade-in" style={{ gap: 18 }}>
       {rconWarning}
@@ -240,3 +295,4 @@ function MonitorView({ server, layout = 'grid' }) {
 }
 
 Object.assign(window, { MonitorView, Console, Players, useLiveServer });
+

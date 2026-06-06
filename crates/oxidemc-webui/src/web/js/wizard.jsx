@@ -38,21 +38,30 @@ function NewServerWizard({ layout = 'split', settingsTreatment = 'grouped', onDo
   // kick off real install
   useEffectW(() => {
     if (phase !== 'download') return;
-    setProgress(10);
+    setProgress(5);
     setInstallErr(null);
+    let ws = null;
+
     const state = flatToServerState(name, platform, version, settings);
     apiFetch('/api/install', { method: 'POST', body: JSON.stringify({ server_name: name, server_type: platform, minecraft_version: version, state }) })
-      .then(() => {
-        // poll until server appears
-        setProgress(50);
-        const iv = setInterval(() => {
-          apiFetch('/api/servers').then(list => {
-            if (list.find(s => s.name === name)) { clearInterval(iv); setProgress(100); setTimeout(() => setPhase('done'), 400); }
-          });
-        }, 1200);
-        return () => clearInterval(iv);
+      .then(res => {
+        ws = new WebSocket(wsUrl(`/ws/install/${res.job}`));
+        ws.onmessage = (e) => {
+          const msg = JSON.parse(e.data);
+          if (msg.type === 'progress' && msg.total > 0) {
+            setProgress(Math.max(5, Math.min(95, Math.round(msg.downloaded / msg.total * 90) + 5)));
+          } else if (msg.type === 'done') {
+            setProgress(100);
+            setTimeout(() => setPhase('done'), 400);
+          } else if (msg.type === 'error') {
+            setInstallErr(msg.msg);
+            setPhase('form');
+          }
+        };
       })
       .catch(err => { setInstallErr(err.message); setPhase('form'); });
+
+    return () => { if (ws) ws.close(); };
   }, [phase]);
 
   const nameErr = !/^[a-z0-9][a-z0-9-_]*$/i.test(name) ? 'Use letters, digits, - or _' : null;

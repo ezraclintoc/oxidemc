@@ -37,11 +37,11 @@ function StatusPill({ status }) {
 
 // ── platform logo ────────────────────────────────────────────────────────────
 const PLATFORM_LOGOS = {
-  vanilla:  'assets/vanilla.png',
-  paper:    'assets/paper.png',
-  fabric:   'assets/fabric.png',
-  neoforge: 'assets/neoforge.png',
-  purpur:   'assets/purpur.png',
+  vanilla:  '/assets/vanilla.png',
+  paper:    '/assets/paper.png',
+  fabric:   '/assets/fabric.png',
+  neoforge: '/assets/neoforge.png',
+  purpur:   '/assets/purpur.png',
 };
 
 function PlatformLogo({ id, size = 44, tone }) {

@@ -1,5 +1,9 @@
 use serde::{Deserialize, Serialize};
 
+fn default_backup_enabled() -> Question<bool> {
+    Question { ask: false, default: true, options: None, note: None, requires_rcon: false, condition: None }
+}
+
 /// A configurable value. `ask=true` means prompt the user at setup time.
 /// `note` is an optional warning or hint shown alongside the prompt.
 /// `requires_rcon=true` means this setting is managed at runtime via RCON;
@@ -237,6 +241,10 @@ pub struct ServerState {
     pub performance: ResolvedPerformanceSection,
     pub players: ResolvedPlayersSection,
     pub mods: ResolvedModsSection,
+    /// Whether RCON TPS polling has been confirmed to work for this server.
+    /// None = unknown (probe on next start), Some(false) = not supported (skip probing).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub tps_capable: Option<bool>,
 }
 
 // ── Manage ────────────────────────────────────────────────────────────────────
@@ -252,6 +260,9 @@ pub struct ManageConfig {
     pub check_java_version: Question<bool>,
     /// Check for OxideMC updates when the app launches
     pub auto_update_check: Question<bool>,
+    /// Whether automatic backups are enabled
+    #[serde(default = "default_backup_enabled")]
+    pub backup_enabled: Question<bool>,
     /// Directory where server backups are stored
     pub backup_directory: Question<String>,
     /// Number of rolling backups to keep per server; 0 = unlimited

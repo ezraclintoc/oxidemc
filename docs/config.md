@@ -44,11 +44,14 @@ Global OxideMC settings. All fields default to `ask: false` — edit the file di
 | `java_path` | `""` | Path to a Java executable. Empty = use `java` found on `$PATH`. |
 | `check_java_version` | `true` | Warn if Java version is incompatible with the MC version being installed. |
 | `auto_update_check` | `true` | Check for OxideMC updates on launch. |
+| `backup_enabled` | `true` | Enable automatic server backups. When `false`, backup_directory and backup_count are ignored. |
 | `backup_directory` | `~/.config/oxidemc/backups` | Where server backups are stored. |
 | `backup_count` | `5` | Rolling backups kept per server. `0` = unlimited. |
 | `log_level` | `"info"` | OxideMC log verbosity. Options: `error`, `warn`, `info`, `debug`. |
 | `default_preset` | `""` | Preset name to load automatically; skips the preset picker when set. |
-| `theme` | `"default"` | TUI color theme name. |
+| `theme` | `"default"` | TUI color theme name. Options: `default`, `green`, `ocean`, `lava`. |
+
+> **Note:** `backup_enabled` is a new field added in recent versions. Existing `manage.json` files without it will deserialize with `default: true` (backups enabled), matching prior behaviour.
 
 ---
 
@@ -94,7 +97,7 @@ Drives the configuration wizard. Settings are grouped into submenus — each top
 | Field | Default | Description |
 | --- | --- | --- |
 | `port` | `25565` | Port the server listens on. |
-| `rcon.enabled` | `true` | Enable RCON. **Required for OxideMC live management** (console, player commands, restart hooks). |
+| `rcon.enabled` | `true` | Enable RCON. **Required for OxideMC live management** (console commands, TPS, restart hooks). |
 | `rcon.port` | `25575` | RCON port. |
 | `rcon.password` | `""` | RCON password. Required when RCON is enabled. |
 
@@ -198,10 +201,14 @@ Named files that override defaults in `install.json` and `configure.json`. Selec
 
 ## oxide.json (per-server state)
 
-Generated in each server's directory after setup. Records every answered value. Load it as a preset to duplicate that server.
+Generated in each server's directory after setup. Records every answered value. Load it as a preset to duplicate that server. Also written and read by the Web UI via `GET/PUT /api/servers/:name`.
 
 ```json
 {
+  "server_name": "my-smp",
+  "server_type": "paper",
+  "minecraft_version": "1.21.4",
+  "directory": "~/servers/my-smp",
   "server": {
     "motd": "My SMP",
     "max_players": 10,

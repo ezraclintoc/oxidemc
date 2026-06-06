@@ -38,6 +38,8 @@ async fn main() -> anyhow::Result<()> {
         .nest("/api", api)
         // ── live Monitor socket (console + metrics + command input) ──────────
         .route("/ws/servers/:name", get(ws::monitor))
+        // ── install progress socket ───────────────────────────────────────────
+        .route("/ws/install/:job", get(ws::install_progress))
         // ── serve the React SPA; unknown paths fall back to index.html ─────────
         .fallback_service(
             ServeDir::new("crates/oxidemc-webui/src/web")

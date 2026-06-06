@@ -34,7 +34,12 @@
   "log_level": {
     "ask": false,
     "default": "info",
-    "options": ["error", "warn", "info", "debug"]
+    "options": [
+      "error",
+      "warn",
+      "info",
+      "debug"
+    ]
   },
   "default_preset": {
     "ask": false,
